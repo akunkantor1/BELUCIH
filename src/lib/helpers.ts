@@ -12,11 +12,16 @@ export function formatWhatsAppNumber(num: string): string {
   return cleaned;
 }
 
-export function buildWhatsAppLink(phone: string, productName?: string): string {
+export function buildWhatsAppLink(phone: string, productName?: string, quantity?: number): string {
   const formatted = formatWhatsAppNumber(phone);
-  const message = productName
-    ? `Halo Admin, saya tertarik dengan produk: ${productName}. Apakah masih tersedia?`
-    : 'Halo Admin, saya ingin bertanya tentang produk baking tool.';
+  let message: string;
+  if (productName) {
+    message = quantity && quantity > 1
+      ? `Halo Admin, saya tertarik dengan produk: ${productName}. Saya ingin pesan ${quantity} pcs. Apakah masih tersedia?`
+      : `Halo Admin, saya tertarik dengan produk: ${productName}. Apakah masih tersedia?`;
+  } else {
+    message = 'Halo Admin, saya ingin bertanya tentang produk baking tool.';
+  }
   return `https://wa.me/${formatted}?text=${encodeURIComponent(message)}`;
 }
 

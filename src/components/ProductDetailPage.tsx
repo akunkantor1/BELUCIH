@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase, type Product, type ProductVariant, type ProductImage } from '@/lib/supabase';
 import { formatPrice, buildWhatsAppLink } from '@/lib/helpers';
 import { useSettings } from '@/context/SettingsContext';
-import { ArrowLeft, MessageCircle, ChefHat, Check, X, Star } from 'lucide-react';
+import { ArrowLeft, MessageCircle, ChefHat, Check, X, Star, Minus, Plus } from 'lucide-react';
 
 type Props = {
   product: Product;
@@ -15,6 +15,7 @@ export function ProductDetailPage({ product, onBack }: Props) {
   const [images, setImages] = useState<ProductImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(product.main_image_url);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [qty, setQty] = useState(1);
 
   const fetchDetails = useCallback(async () => {
     const { data: vData } = await supabase
@@ -41,6 +42,7 @@ export function ProductDetailPage({ product, onBack }: Props) {
   const wa2 = settings?.whatsapp_2 || '082123207202';
   const variantName = selectedVariant ? ` - ${selectedVariant.name}` : '';
   const orderProductName = `${product.name}${variantName}`;
+  const disabled = product.stock_status === 'Habis';
 
   return (
     <div className="max-w-5xl mx-auto px-5 sm:px-6 lg:px-8 py-8">
@@ -144,25 +146,60 @@ export function ProductDetailPage({ product, onBack }: Props) {
             </div>
           )}
 
+          {/* Quantity selector */}
+          {!disabled && (
+            <div className="mb-5">
+              <h3 className="text-sm font-bold text-brown-900 mb-2.5">Jumlah Pesanan</h3>
+              <div className="inline-flex items-center bg-white border-2 border-brown-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setQty(Math.max(1, qty - 1))}
+                  disabled={qty <= 1}
+                  className="w-11 h-11 flex items-center justify-center text-brown-700 hover:bg-brown-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Kurangi jumlah"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  value={qty}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value);
+                    setQty(isNaN(v) || v < 1 ? 1 : v);
+                  }}
+                  className="w-14 h-11 text-center text-sm font-bold text-brown-950 bg-transparent border-0 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <button
+                  onClick={() => setQty(qty + 1)}
+                  className="w-11 h-11 flex items-center justify-center text-brown-700 hover:bg-brown-50 transition-colors"
+                  aria-label="Tambah jumlah"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-xs text-brown-400 mt-2 font-medium">{qty} pcs akan dipesan</p>
+            </div>
+          )}
+
           {/* WhatsApp order */}
           <div className="mt-auto bg-brown-50 rounded-2xl p-5 border border-brown-100">
             <p className="text-sm font-bold text-brown-950 mb-1">Pesan via WhatsApp</p>
             <p className="text-xs text-brown-500 mb-4">Pilih admin untuk memesan produk ini</p>
             <div className="flex flex-col sm:flex-row gap-2.5">
               <a
-                href={buildWhatsAppLink(wa1, orderProductName)}
+                href={buildWhatsAppLink(wa1, orderProductName, qty)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors ${disabled ? 'bg-brown-300 text-brown-500 cursor-not-allowed pointer-events-none' : 'bg-green-600 hover:bg-green-700 text-white'}`}
               >
                 <MessageCircle className="h-4 w-4" />
                 Admin 1
               </a>
               <a
-                href={buildWhatsAppLink(wa2, orderProductName)}
+                href={buildWhatsAppLink(wa2, orderProductName, qty)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors ${disabled ? 'bg-brown-300 text-brown-500 cursor-not-allowed pointer-events-none' : 'bg-green-600 hover:bg-green-700 text-white'}`}
               >
                 <MessageCircle className="h-4 w-4" />
                 Admin 2
