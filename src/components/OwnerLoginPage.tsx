@@ -4,7 +4,7 @@ import { ChefHat, Lock, Mail, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export function OwnerLoginPage() {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('owner@rodamasbelucih.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,9 +90,8 @@ export function OwnerLoginPage() {
           </form>
 
           <div className="mt-5 bg-brown-50 rounded-xl p-3.5 text-xs border border-brown-100">
-            <p className="font-bold text-brown-700 mb-1">Akun Owner:</p>
-            <p className="text-brown-500">Email: owner@rodamasbelucih.com</p>
-            <p className="text-brown-500">Password: rodamas2024</p>
+            <p className="font-bold text-brown-700 mb-1">Owner Access</p>
+            <p className="text-brown-500">Silakan masuk dengan email dan password owner Anda.</p>
           </div>
         </div>
       </div>

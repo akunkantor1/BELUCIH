@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useState } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { SettingsProvider } from '@/context/SettingsContext';
@@ -11,7 +12,7 @@ import { OwnerDashboard } from '@/components/OwnerDashboard';
 type Page = 'home' | 'products' | 'about' | 'contact';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, isOwner, loading } = useAuth();
   const [page, setPage] = useState<Page>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -26,10 +27,29 @@ function AppContent() {
     );
   }
 
-  // Owner routes
+  // Owner routes — require both authentication AND owner status
   if (isOwnerRoute) {
     if (!user) {
       return <OwnerLoginPage />;
+    }
+    if (!isOwner) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-brown-950 px-4">
+          <div className="text-center max-w-sm">
+            <div className="bg-red-900/30 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <X className="h-7 w-7 text-red-300" />
+            </div>
+            <h1 className="font-serif text-xl font-semibold text-white mb-2">Akses Ditolak</h1>
+            <p className="text-brown-400 text-sm mb-6">Akun Anda tidak memiliki izin owner. Hubungi administrator jika ini adalah kesalahan.</p>
+            <button
+              onClick={() => { window.location.href = '/'; }}
+              className="bg-brown-800 hover:bg-brown-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
+            >
+              Kembali ke Beranda
+            </button>
+          </div>
+        </div>
+      );
     }
     return <OwnerDashboard />;
   }
