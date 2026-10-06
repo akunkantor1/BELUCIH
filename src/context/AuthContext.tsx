@@ -23,12 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsOwner(false);
       return;
     }
-    const { data } = await supabase
-      .from('app_owners')
-      .select('user_id')
-      .eq('user_id', uid)
-      .maybeSingle();
-    setIsOwner(!!data);
+    const { data } = await supabase.rpc('is_owner_check');
+    setIsOwner(data === true);
   };
 
   useEffect(() => {
