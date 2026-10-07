@@ -16,8 +16,9 @@ function AppContent() {
   const [page, setPage] = useState<Page>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Check if we're on the owner route
-  const isOwnerRoute = window.location.pathname.startsWith('/owner');
+  const currentPath = window.location.pathname;
+  const isOwnerRoute = currentPath === '/owner' || currentPath.startsWith('/owner/');
+  const isLoginRoute = currentPath === '/login-owner';
 
   if (loading) {
     return (
@@ -27,10 +28,20 @@ function AppContent() {
     );
   }
 
-  // Owner routes — require both authentication AND owner status
+  // /login-owner — show login page, but redirect to dashboard if already logged in as owner
+  if (isLoginRoute) {
+    if (user && isOwner) {
+      window.location.href = '/owner';
+      return null;
+    }
+    return <OwnerLoginPage />;
+  }
+
+  // /owner — require both authentication AND owner status
   if (isOwnerRoute) {
     if (!user) {
-      return <OwnerLoginPage />;
+      window.location.href = '/login-owner';
+      return null;
     }
     if (!isOwner) {
       return (

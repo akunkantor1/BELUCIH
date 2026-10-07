@@ -15,8 +15,12 @@ export function OwnerLoginPage() {
     setError(null);
     setLoading(true);
     const { error: err } = await signIn(email, password);
-    setLoading(false);
-    if (err) setError(err);
+    if (err) {
+      setError('Email atau password salah. Silakan coba lagi.');
+      setLoading(false);
+    } else {
+      window.location.href = '/owner';
+    }
   };
 
   return (
