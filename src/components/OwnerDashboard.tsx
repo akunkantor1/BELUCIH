@@ -5,10 +5,11 @@ import { useSettings } from '@/context/SettingsContext';
 import { useAuth } from '@/context/AuthContext';
 import {
   Package, Settings, LogOut, Plus, Pencil, Trash2, X, Upload, ChefHat, Tag,
-  Layers, Image as ImageIcon, Save, ChevronDown, ChevronRight, Check, ArrowLeft, Star,
+  Layers, Image as ImageIcon, Save, ChevronDown, ChevronRight, Check, ArrowLeft, Star, FileText,
 } from 'lucide-react';
+import { CatalogSection } from '@/components/CatalogGenerator';
 
-type Tab = 'products' | 'categories' | 'settings';
+type Tab = 'products' | 'categories' | 'settings' | 'catalog';
 
 export function OwnerDashboard() {
   const { signOut } = useAuth();
@@ -44,6 +45,7 @@ export function OwnerDashboard() {
             {[
               { id: 'products' as Tab, label: 'Produk', icon: Package },
               { id: 'categories' as Tab, label: 'Kategori', icon: Tag },
+              { id: 'catalog' as Tab, label: 'Katalog', icon: FileText },
               { id: 'settings' as Tab, label: 'Pengaturan Toko', icon: Settings },
             ].map((t) => (
               <button
@@ -64,6 +66,7 @@ export function OwnerDashboard() {
       <div className="max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 py-8">
         {tab === 'products' && <ProductsManager />}
         {tab === 'categories' && <CategoriesManager />}
+        {tab === 'catalog' && <CatalogSection />}
         {tab === 'settings' && <StoreSettingsManager />}
       </div>
     </div>
