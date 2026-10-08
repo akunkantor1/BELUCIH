@@ -4,7 +4,7 @@ import { formatPrice, buildWhatsAppLink } from '@/lib/helpers';
 import { useSettings } from '@/context/SettingsContext';
 import {
   ChefHat, MessageCircle, Package, Search, ArrowRight, MapPin, Clock,
-  Phone, Sparkles, Check, X, Star,
+  Phone, Sparkles, Check, X, Star, Download,
 } from 'lucide-react';
 
 type Props = {
@@ -85,6 +85,15 @@ export function HomePage({ onNavigate, onSelectProduct }: Props) {
               >
                 <MessageCircle className="h-4 w-4" />
                 Hubungi Kami
+              </a>
+              <a
+                href="https://github.com/akunkantor1/BELUCIH/releases/download/v1.0.0/app-release.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-brown-800/40 hover:bg-brown-800/60 text-white border border-brown-700/40 px-5 py-3 rounded-xl text-sm font-bold transition-all backdrop-blur-sm flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download Aplikasi BELUCIH
               </a>
             </div>
           </div>
