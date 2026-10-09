@@ -11,6 +11,8 @@ type CatalogData = {
   settings: StoreSettings | null;
 };
 
+const APK_URL = 'https://github.com/akunkantor1/BELUCIH/releases/download/v1.0.0/app-release.apk';
+
 async function fetchCatalogData(): Promise<CatalogData | null> {
   const [prodRes, setRes] = await Promise.all([
     supabase
@@ -106,7 +108,10 @@ async function loadImageForPdf(url: string): Promise<{ dataUrl: string; format: 
   }
 }
 
-async function preloadImages(products: CatalogProduct[], settings: StoreSettings | null): Promise<Map<string, { dataUrl: string; format: 'PNG' | 'JPEG' } | null>> {
+async function preloadImages(
+  products: CatalogProduct[],
+  settings: StoreSettings | null,
+): Promise<Map<string, { dataUrl: string; format: 'PNG' | 'JPEG' } | null>> {
   const cache = new Map<string, { dataUrl: string; format: 'PNG' | 'JPEG' } | null>();
   const urls = new Set<string>();
   for (const p of products) {
@@ -143,36 +148,35 @@ function formatPriceShort(price: number | null): string {
   return num.toString();
 }
 
-// ===== PDF Layout Constants =====
-const PAGE_W = 595.28;
-const PAGE_H = 841.89;
-const MARGIN = 28;
+// ===== PDF Layout — A4 Landscape =====
+const PAGE_W = 841.89;
+const PAGE_H = 595.28;
+const MARGIN = 30;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const GAP = 8;
+const GAP = 10;
 const COLS = 4;
 const CARD_W = (CONTENT_W - GAP * (COLS - 1)) / COLS;
-const CARD_PAD = 6;
-const IMG_H = 75;
+const CARD_PAD = 7;
+const IMG_H = 95;
 const CARD_RADIUS = 4;
+const FOOTER_RESERVE = 20;
 
-function drawCoverPage(doc: jsPDF, settings: StoreSettings | null, imgCache: Map<string, { dataUrl: string; format: 'PNG' | 'JPEG' } | null>) {
+function drawCoverPage(
+  doc: jsPDF,
+  settings: StoreSettings | null,
+  imgCache: Map<string, { dataUrl: string; format: 'PNG' | 'JPEG' } | null>,
+) {
   doc.setFillColor(250, 248, 245);
   doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
 
-  // Decorative top band
   doc.setFillColor(67, 52, 38);
-  doc.rect(0, 0, PAGE_W, 120, 'F');
-
-  // Accent line
+  doc.rect(0, 0, PAGE_W, 90, 'F');
   doc.setFillColor(180, 145, 100);
-  doc.rect(0, 120, PAGE_W, 3, 'F');
+  doc.rect(0, 90, PAGE_W, 3, 'F');
 
-  const centerY = 250;
-
-  // Logo
-  const logoSize = 70;
+  const logoSize = 64;
   const logoX = PAGE_W / 2 - logoSize / 2;
-  const logoY = centerY - 40;
+  const logoY = 130;
 
   const logoData = settings?.logo_url ? imgCache.get(settings.logo_url) : null;
   if (logoData) {
@@ -185,50 +189,48 @@ function drawCoverPage(doc: jsPDF, settings: StoreSettings | null, imgCache: Map
   } else {
     doc.setFillColor(180, 145, 100);
     doc.roundedRect(logoX, logoY, logoSize, logoSize, 8, 8, 'F');
-    doc.setFontSize(28);
+    doc.setFontSize(26);
     doc.setTextColor(67, 52, 38);
     doc.setFont('helvetica', 'bold');
-    doc.text('B', PAGE_W / 2, logoY + logoSize / 2 + 10, { align: 'center' });
+    doc.text('B', PAGE_W / 2, logoY + logoSize / 2 + 9, { align: 'center' });
   }
 
-  // Store name
   doc.setTextColor(67, 52, 38);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(28);
+  doc.setFontSize(26);
   const storeName = settings?.store_name || 'BELUCIH';
-  doc.text(storeName, PAGE_W / 2, logoY + logoSize + 30, { align: 'center' });
+  doc.text(storeName, PAGE_W / 2, logoY + logoSize + 26, { align: 'center' });
 
-  // KATALOG PRODUK
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(140, 110, 80);
-  doc.text('KATALOG PRODUK', PAGE_W / 2, logoY + logoSize + 52, { align: 'center' });
+  doc.text('KATALOG PRODUK', PAGE_W / 2, logoY + logoSize + 46, { align: 'center' });
 
-  // Tagline
   if (settings?.tagline) {
     doc.setFontSize(10);
     doc.setTextColor(150, 130, 110);
-    doc.text(settings.tagline, PAGE_W / 2, logoY + logoSize + 70, { align: 'center' });
+    doc.text(settings.tagline, PAGE_W / 2, logoY + logoSize + 62, { align: 'center' });
   }
 
-  // Contact info card
-  const boxY = logoY + logoSize + 100;
-  const boxH = 100;
+  const boxY = logoY + logoSize + 82;
+  const boxH = 88;
+  const boxX = MARGIN + 80;
+  const boxW = CONTENT_W - 160;
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(MARGIN + 50, boxY, CONTENT_W - 100, boxH, 6, 6, 'F');
+  doc.roundedRect(boxX, boxY, boxW, boxH, 6, 6, 'F');
   doc.setDrawColor(225, 220, 210);
   doc.setLineWidth(0.5);
-  doc.roundedRect(MARGIN + 50, boxY, CONTENT_W - 100, boxH, 6, 6, 'S');
+  doc.roundedRect(boxX, boxY, boxW, boxH, 6, 6, 'S');
 
-  let infoY = boxY + 20;
-  const infoX = MARGIN + 68;
-  const infoW = CONTENT_W - 136;
+  let infoY = boxY + 18;
+  const infoX = boxX + 18;
+  const infoW = boxW - 36;
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(67, 52, 38);
   doc.text('Informasi Kontak', infoX, infoY);
-  infoY += 15;
+  infoY += 14;
 
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 85, 70);
@@ -247,28 +249,24 @@ function drawCoverPage(doc: jsPDF, settings: StoreSettings | null, imgCache: Map
     doc.text(`Jam: ${settings.operating_hours}`, infoX, infoY);
   }
 
-  // Date at bottom
   doc.setFontSize(8);
   doc.setTextColor(140, 120, 100);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Dibuat: ${formatDateIndonesian()}`, PAGE_W / 2, PAGE_H - 25, { align: 'center' });
+  doc.text(`Dibuat: ${formatDateIndonesian()}`, PAGE_W / 2, PAGE_H - 18, { align: 'center' });
 
-  // Bottom band
   doc.setFillColor(67, 52, 38);
   doc.rect(0, PAGE_H - 6, PAGE_W, 6, 'F');
 }
 
 function calcCardHeight(product: CatalogProduct): number {
-  let h = CARD_PAD + IMG_H + 6;
-  h += 11; // name (1 line)
+  let h = CARD_PAD + IMG_H + 7;
+  h += 12;
   if (product.description) h += 8;
   if (product.variants.length > 0) {
-    h += 6; // "Varian" label
-    h += product.variants.length * 7;
-  } else if (product.price) {
-    h += 4;
+    h += 7;
+    h += product.variants.length * 8;
   }
-  h += 8; // price line
+  h += 12;
   h += CARD_PAD;
   return h;
 }
@@ -278,18 +276,15 @@ function drawCard(
   product: CatalogProduct,
   x: number,
   y: number,
+  cardH: number,
   imgCache: Map<string, { dataUrl: string; format: 'PNG' | 'JPEG' } | null>,
 ): void {
-  const h = calcCardHeight(product);
-
-  // Card background
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(x, y, CARD_W, h, CARD_RADIUS, CARD_RADIUS, 'F');
+  doc.roundedRect(x, y, CARD_W, cardH, CARD_RADIUS, CARD_RADIUS, 'F');
   doc.setDrawColor(228, 223, 213);
   doc.setLineWidth(0.4);
-  doc.roundedRect(x, y, CARD_W, h, CARD_RADIUS, CARD_RADIUS, 'S');
+  doc.roundedRect(x, y, CARD_W, cardH, CARD_RADIUS, CARD_RADIUS, 'S');
 
-  // Image area
   const imgX = x + CARD_PAD;
   const imgY = y + CARD_PAD;
   const imgW = CARD_W - CARD_PAD * 2;
@@ -305,78 +300,73 @@ function drawCard(
     drawPlaceholder(doc, imgX, imgY, imgW, IMG_H);
   }
 
-  // Text area
   const textX = x + CARD_PAD;
   const textW = CARD_W - CARD_PAD * 2;
-  let ty = imgY + IMG_H + 6;
+  let ty = imgY + IMG_H + 7;
 
-  // Name
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
+  doc.setFontSize(8);
   doc.setTextColor(40, 30, 20);
   const nameLines = doc.splitTextToSize(product.name, textW);
   doc.text(nameLines.slice(0, 2), textX, ty);
-  ty += nameLines.length > 1 ? 12 : 9;
+  ty += nameLines.length > 1 ? 13 : 10;
 
-  // Description (1 line)
   if (product.description) {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
+    doc.setFontSize(6.5);
     doc.setTextColor(120, 105, 90);
     const descLines = doc.splitTextToSize(product.description, textW);
     doc.text(descLines.slice(0, 1), textX, ty);
-    ty += 7;
+    ty += 8;
   }
 
-  // Variants
   if (product.variants.length > 0) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(5.5);
+    doc.setFontSize(6);
     doc.setTextColor(140, 110, 80);
     doc.text('VARIAN', textX, ty);
-    ty += 6;
+    ty += 7;
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(80, 70, 60);
+    doc.setFontSize(7);
     for (const v of product.variants) {
-      const vName = doc.splitTextToSize(v.name, textW - 30).slice(0, 1)[0] || v.name;
-      const vPrice = v.price ? formatPriceShort(v.price) : '';
+      const vNameLines = doc.splitTextToSize(v.name, textW - 35);
+      const vName = vNameLines[0] || v.name;
+      doc.setTextColor(80, 70, 60);
       doc.text(vName, textX, ty);
-      if (vPrice) {
+      if (v.price) {
+        doc.setFont('helvetica', 'bold');
         doc.setTextColor(67, 52, 38);
-        doc.text(vPrice, x + CARD_W - CARD_PAD, ty, { align: 'right' });
-        doc.setTextColor(80, 70, 60);
+        doc.text(formatPriceShort(v.price), x + CARD_W - CARD_PAD, ty, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
       }
-      ty += 7;
+      ty += 8;
     }
   }
 
-  // Price (if no variants, show product price)
   if (product.variants.length === 0 && product.price) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.setTextColor(67, 52, 38);
     doc.text(formatPrice(product.price), textX, ty + 2);
   }
 
-  // Stock status badge
   if (product.stock_status) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(5);
+    doc.setFontSize(5.5);
     const isHabis = product.stock_status === 'Habis';
     doc.setTextColor(isHabis ? 180 : 60, isHabis ? 60 : 120, 50);
-    doc.text(product.stock_status, x + CARD_W - CARD_PAD, y + h - CARD_PAD - 1, { align: 'right' });
+    doc.text(product.stock_status, x + CARD_W - CARD_PAD, y + cardH - CARD_PAD - 1, { align: 'right' });
   }
 }
 
 function drawPlaceholder(doc: jsPDF, x: number, y: number, w: number, h: number) {
   doc.setFillColor(242, 238, 232);
   doc.roundedRect(x, y, w, h, 3, 3, 'F');
-  doc.setFontSize(16);
+  doc.setFontSize(18);
   doc.setTextColor(205, 195, 180);
   doc.setFont('helvetica', 'normal');
-  doc.text('?', x + w / 2, y + h / 2 + 5, { align: 'center' });
+  doc.text('?', x + w / 2, y + h / 2 + 6, { align: 'center' });
 }
 
 function drawCategoryHeader(doc: jsPDF, categoryName: string, y: number): number {
@@ -394,7 +384,7 @@ function drawPageFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   doc.setFontSize(7);
   doc.setTextColor(140, 120, 100);
   doc.setFont('helvetica', 'normal');
-  doc.text(`BELUCIH — Katalog Produk — Halaman ${pageNum} dari ${totalPages}`, PAGE_W / 2, PAGE_H - 12, { align: 'center' });
+  doc.text(`BELUCIH — Katalog Produk — Halaman ${pageNum} dari ${totalPages}`, PAGE_W / 2, PAGE_H - 8, { align: 'center' });
 }
 
 function drawPageBg(doc: jsPDF) {
@@ -404,83 +394,66 @@ function drawPageBg(doc: jsPDF) {
 
 async function generatePdf(data: CatalogData): Promise<jsPDF> {
   const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' });
 
-  // Preload all images
   const imgCache = await preloadImages(data.products, data.settings);
 
-  // Cover page
   drawPageBg(doc);
   drawCoverPage(doc, data.settings, imgCache);
 
   const groups = groupByCategory(data.products);
-  const FOOTER_Y = PAGE_H - 22;
-  const USABLE_BOTTOM = FOOTER_Y - 6;
-  let pageNum = 2;
+  const USABLE_BOTTOM = PAGE_H - FOOTER_RESERVE;
+
+  let pageNum = 1;
   let y = MARGIN;
 
   doc.addPage();
   drawPageBg(doc);
+  pageNum = 2;
   y = MARGIN;
 
   for (const group of groups) {
-    // Category header
     const headerH = 18 + 6;
     if (y + headerH > USABLE_BOTTOM) {
-      drawPageFooter(doc, pageNum - 1, 0);
       doc.addPage();
       drawPageBg(doc);
-      y = MARGIN;
       pageNum++;
+      y = MARGIN;
     }
     y = drawCategoryHeader(doc, group.categoryName, y);
 
-    // Products in 4-col grid
     let col = 0;
-    let rowStartY = y;
+    let rowY = y;
     let rowMaxH = 0;
 
     for (const product of group.items) {
       const cardH = calcCardHeight(product);
 
-      // Check if card fits in current row
       if (col >= COLS) {
-        // Move to next row
-        y = rowStartY + rowMaxH + GAP;
+        rowY = rowY + rowMaxH + GAP;
         col = 0;
         rowMaxH = 0;
       }
 
-      // Check if card fits on current page
-      const cardY = col === 0 ? y : rowStartY;
-      if (cardY + cardH > USABLE_BOTTOM) {
-        // New page
-        drawPageFooter(doc, pageNum - 1, 0);
+      if (rowY + cardH > USABLE_BOTTOM) {
         doc.addPage();
         drawPageBg(doc);
-        y = MARGIN;
         pageNum++;
+        rowY = MARGIN;
         col = 0;
-        rowStartY = y;
         rowMaxH = 0;
       }
 
       const cardX = MARGIN + col * (CARD_W + GAP);
-      const finalY = col === 0 ? rowStartY : rowStartY;
-      drawCard(doc, product, cardX, finalY, imgCache);
+      drawCard(doc, product, cardX, rowY, cardH, imgCache);
 
       if (cardH > rowMaxH) rowMaxH = cardH;
       col++;
     }
 
-    // Advance past the last row
-    y = rowStartY + rowMaxH + GAP + 4;
-    col = 0;
-    rowStartY = y;
-    rowMaxH = 0;
+    y = rowY + rowMaxH + GAP + 4;
   }
 
-  // Add footers to all product pages
   const totalPages = pageNum;
   for (let p = 2; p <= totalPages; p++) {
     doc.setPage(p);
