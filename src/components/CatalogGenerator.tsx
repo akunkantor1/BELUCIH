@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { supabase, type Product, type ProductVariant, type StoreSettings } from '@/lib/supabase';
 import { formatPrice, formatWhatsAppNumber } from '@/lib/helpers';
 import { FileText, Eye, X, ChefHat, Loader2 } from 'lucide-react';
@@ -11,7 +11,7 @@ type CatalogData = {
   settings: StoreSettings | null;
 };
 
-const APK_URL = 'https://github.com/akunkantor1/BELUCIH/releases/download/v1.0.0/app-release.apk';
+const APK_URL = 'https://github.com/akunkantor1/BELUCIH/releases/latest/download/app-release.apk';
 
 async function fetchCatalogData(): Promise<CatalogData | null> {
   const [prodRes, setRes] = await Promise.all([
@@ -148,7 +148,7 @@ function formatPriceShort(price: number | null): string {
   return num.toString();
 }
 
-// ===== PDF Layout — A4 Landscape =====
+// ===== PDF Layout â€” A4 Landscape =====
 const PAGE_W = 841.89;
 const PAGE_H = 595.28;
 const MARGIN = 30;
@@ -384,7 +384,7 @@ function drawPageFooter(doc: jsPDF, pageNum: number, totalPages: number) {
   doc.setFontSize(7);
   doc.setTextColor(140, 120, 100);
   doc.setFont('helvetica', 'normal');
-  doc.text(`BELUCIH — Katalog Produk — Halaman ${pageNum} dari ${totalPages}`, PAGE_W / 2, PAGE_H - 8, { align: 'center' });
+  doc.text(`BELUCIH â€” Katalog Produk â€” Halaman ${pageNum} dari ${totalPages}`, PAGE_W / 2, PAGE_H - 8, { align: 'center' });
 }
 
 function drawPageBg(doc: jsPDF) {
@@ -595,7 +595,7 @@ function CatalogPreview({ data, onClose }: { data: CatalogData; onClose: () => v
           </div>
         </div>
 
-        {/* Products by category — 4 column grid */}
+        {/* Products by category â€” 4 column grid */}
         <div className="p-5 space-y-6">
           {groups.map((g) => (
             <div key={g.categoryName}>
@@ -652,3 +652,4 @@ function CatalogPreview({ data, onClose }: { data: CatalogData; onClose: () => v
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { supabase, type Product, type Category } from '@/lib/supabase';
 import { formatPrice, buildWhatsAppLink } from '@/lib/helpers';
 import { useSettings } from '@/context/SettingsContext';
@@ -87,7 +87,7 @@ export function HomePage({ onNavigate, onSelectProduct }: Props) {
                 Hubungi Kami
               </a>
               <a
-                href="https://github.com/akunkantor1/BELUCIH/releases/download/v1.0.0/app-release.apk"
+                href="https://github.com/akunkantor1/BELUCIH/releases/latest/download/app-release.apk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-brown-800/40 hover:bg-brown-800/60 text-white border border-brown-700/40 px-5 py-3 rounded-xl text-sm font-bold transition-all backdrop-blur-sm flex items-center gap-2"
@@ -483,3 +483,4 @@ export function ContactPage() {
     </div>
   );
 }
+
