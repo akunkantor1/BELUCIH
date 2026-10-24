@@ -1,5 +1,7 @@
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { supabase, type Product } from '@/lib/supabase';
@@ -11,14 +13,137 @@ import { OwnerDashboard } from '@/components/OwnerDashboard';
 
 type Page = 'home' | 'products' | 'about' | 'contact';
 
+function setProductQuery(productId: string | null) {
+  const url = new URL(window.location.href);
+  if (productId) url.searchParams.set('product', productId);
+  else url.searchParams.delete('product');
+  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
 function AppContent() {
   const { user, isOwner, loading } = useAuth();
   const [page, setPage] = useState<Page>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const currentPath = window.location.pathname;
-  const isOwnerRoute = currentPath === '/owner' || currentPath.startsWith('/owner/');
-  const isLoginRoute = currentPath === '/login-owner';
+  const openProductById = useCallback(async (id: string) => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, category:categories(*)')
+      .eq('id', id)
+      .maybeSingle();
+    if (error || !data) {
+      console.error('Tidak dapat membuka produk dari notifikasi:', error);
+      return;
+    }
+    setSelectedProduct(data as Product);
+    setPage('products');
+    setProductQuery(id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleSelectProduct = useCallback(async (product: Product) => {
+    const { data } = await supabase
+      .from('products')
+      .select('*, category:categories(*)')
+      .eq('id', product.id)
+      .maybeSingle();
+    const selected = (data as Product) || product;
+    setSelectedProduct(selected);
+    setPage('products');
+    setProductQuery(selected.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    const productId = new URLSearchParams(window.location.search).get('product');
+    if (productId) void openProductById(productId);
+  }, [openProductById]);
+
+  // Register this Android installation for push messages and handle notification taps.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let active = true;
+    let registrationListener: { remove: () => Promise<void> } | undefined;
+    let actionListener: { remove: () => Promise<void> } | undefined;
+    let errorListener: { remove: () => Promise<void> } | undefined;
+
+    const setup = async () => {
+      try {
+        registrationListener = await PushNotifications.addListener('registration', async (token) => {
+          if (!active || !token.value) return;
+          const { error } = await supabase.functions.invoke('send-notification', {
+            body: {
+              action: 'register_token',
+              token: token.value,
+              platform: 'android',
+            },
+          });
+          
+if (error) {
+  console.error('Gagal mendaftarkan token notifikasi:', error);
+  alert(`Registrasi notifikasi gagal: ${error.message}`);
+} else {
+  console.info('Token notifikasi berhasil tersimpan di server.');
+}
+});
+
+actionListener = await PushNotifications.addListener(
+  'pushNotificationActionPerformed',
+  (action) => {
+          const data = action.notification.data || {};
+          const productId = typeof data.productId === 'string' ? data.productId : '';
+          const targetUrl = typeof data.targetUrl === 'string' ? data.targetUrl : '';
+          if (productId) {
+            void openProductById(productId);
+            return;
+          }
+          if (targetUrl) {
+            try {
+              const target = new URL(targetUrl, window.location.origin);
+              if (target.origin === window.location.origin) {
+                window.location.href = `${target.pathname}${target.search}${target.hash}`;
+              } else if (target.protocol === 'https:') {
+                window.location.href = target.href;
+              }
+            } catch (error) {
+              console.error('Tautan notifikasi tidak valid:', error);
+            }
+          }
+        });
+
+        errorListener = await PushNotifications.addListener('registrationError', (error) => {
+          console.error('Registrasi push notification gagal:', error);
+        });
+
+        await PushNotifications.createChannel({
+          id: 'default',
+          name: 'Notifikasi BELUCIH',
+          description: 'Informasi produk baru dan pengumuman BELUCIH',
+          importance: 5,
+          visibility: 1,
+          vibration: true,
+        });
+
+        let permission = await PushNotifications.checkPermissions();
+        if (permission.receive !== 'granted') {
+          permission = await PushNotifications.requestPermissions();
+        }
+        if (permission.receive === 'granted' && active) {
+          await PushNotifications.register();
+        }
+      } catch (error) {
+        console.error('Inisialisasi push notification gagal:', error);
+      }
+    };
+
+    void setup();
+    return () => {
+      active = false;
+      void registrationListener?.remove();
+      void actionListener?.remove();
+      void errorListener?.remove();
+    };
+  }, [openProductById]);
 
   if (loading) {
     return (
@@ -28,7 +153,10 @@ function AppContent() {
     );
   }
 
-  // /login-owner — show login page, but redirect to dashboard if already logged in as owner
+  const currentPath = window.location.pathname;
+  const isOwnerRoute = currentPath === '/owner' || currentPath.startsWith('/owner/');
+  const isLoginRoute = currentPath === '/login-owner';
+
   if (isLoginRoute) {
     if (user && isOwner) {
       window.location.href = '/owner';
@@ -37,7 +165,6 @@ function AppContent() {
     return <OwnerLoginPage />;
   }
 
-  // /owner — require both authentication AND owner status
   if (isOwnerRoute) {
     if (!user) {
       window.location.href = '/login-owner';
@@ -65,26 +192,17 @@ function AppContent() {
     return <OwnerDashboard />;
   }
 
-  // Storefront
   const navigate = (p: Page) => {
     setSelectedProduct(null);
+    setProductQuery(null);
     setPage(p);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const selectProduct = (p: Product) => {
-    setSelectedProduct(p);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Refresh product data when opening detail
-  const handleSelectProduct = async (p: Product) => {
-    const { data } = await supabase
-      .from('products')
-      .select('*, category:categories(*)')
-      .eq('id', p.id)
-      .maybeSingle();
-    selectProduct((data as Product) || p);
+  const backFromProduct = () => {
+    setSelectedProduct(null);
+    setProductQuery(null);
+    setPage('products');
   };
 
   return (
@@ -92,7 +210,7 @@ function AppContent() {
       <Header onNavigate={navigate} currentPage={selectedProduct ? 'products' : page} />
       <main className="flex-1">
         {selectedProduct ? (
-          <ProductDetailPage product={selectedProduct} onBack={() => setSelectedProduct(null)} />
+          <ProductDetailPage product={selectedProduct} onBack={backFromProduct} />
         ) : page === 'home' ? (
           <HomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} />
         ) : page === 'products' ? (

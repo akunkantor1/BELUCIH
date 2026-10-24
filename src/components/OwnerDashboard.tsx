@@ -5,11 +5,11 @@ import { useSettings } from '@/context/SettingsContext';
 import { useAuth } from '@/context/AuthContext';
 import {
   Package, Settings, LogOut, Plus, Pencil, Trash2, X, Upload, ChefHat, Tag,
-  Layers, Image as ImageIcon, Save, ChevronDown, ChevronRight, Check, ArrowLeft, Star, FileText,
+  Layers, Image as ImageIcon, Save, ChevronDown, ChevronRight, Check, ArrowLeft, Star, FileText, Bell, Send, RefreshCw,
 } from 'lucide-react';
 import { CatalogSection } from '@/components/CatalogGenerator';
 
-type Tab = 'products' | 'categories' | 'settings' | 'catalog';
+type Tab = 'products' | 'categories' | 'settings' | 'catalog' | 'notifications';
 
 export function OwnerDashboard() {
   const { signOut } = useAuth();
@@ -47,6 +47,7 @@ export function OwnerDashboard() {
               { id: 'categories' as Tab, label: 'Kategori', icon: Tag },
               { id: 'catalog' as Tab, label: 'Katalog', icon: FileText },
               { id: 'settings' as Tab, label: 'Pengaturan Toko', icon: Settings },
+              { id: 'notifications' as Tab, label: 'Broadcast Notifikasi', icon: Bell },
             ].map((t) => (
               <button
                 key={t.id}
@@ -68,6 +69,7 @@ export function OwnerDashboard() {
         {tab === 'categories' && <CategoriesManager />}
         {tab === 'catalog' && <CatalogSection />}
         {tab === 'settings' && <StoreSettingsManager />}
+        {tab === 'notifications' && <BroadcastNotifications />}
       </div>
     </div>
   );
@@ -236,11 +238,23 @@ function ProductForm({ product, categories, onClose, onSaved }: {
       is_featured: isFeatured, main_image_url: mainImage || null,
     };
     let productId = product?.id;
+    let createdNewProduct = false;
     if (product) {
-      await supabase.from('products').update(payload).eq('id', product.id);
+      const { error } = await supabase.from('products').update(payload).eq('id', product.id);
+      if (error) {
+        setSaving(false);
+        alert(`Gagal memperbarui produk: ${error.message}`);
+        return;
+      }
     } else {
-      const { data } = await supabase.from('products').insert(payload).select().single();
-      productId = (data as any)?.id;
+      const { data, error } = await supabase.from('products').insert(payload).select().single();
+      if (error || !data) {
+        setSaving(false);
+        alert(`Gagal menyimpan produk: ${error?.message || 'Data produk tidak diterima.'}`);
+        return;
+      }
+      productId = data.id;
+      createdNewProduct = true;
     }
     if (productId) {
       if (product) await supabase.from('product_variants').delete().eq('product_id', productId);
@@ -256,6 +270,40 @@ function ProductForm({ product, categories, onClose, onSaved }: {
         );
       }
     }
+   
+if (createdNewProduct && productId) {
+  const { data, error } = await supabase.functions.invoke(
+    'send-notification',
+    {
+      body: {
+        action: 'process_product',
+        product_id: productId,
+      },
+    }
+  );
+
+  if (error) {
+    console.error('Notifikasi gagal:', error);
+    let detail = error.message;
+
+    try {
+      const response = await error.context.json();
+      detail = response.error || JSON.stringify(response);
+    } catch {
+      // Gunakan pesan error yang tersedia.
+    }
+
+    alert(`Produk tersimpan, tetapi notifikasi gagal: ${detail}`);
+  } else if (data?.error || data?.status === 'failed') {
+    alert(
+      `Notifikasi gagal: ${
+        data.error || data.error_message || data.status
+      }`
+    );
+  } else {
+    console.log('Respons pemrosesan notifikasi:', data);
+  }
+  }
     setSaving(false);
     onSaved();
   };
@@ -451,6 +499,211 @@ function CategoriesManager() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+
+type PushHistoryItem = {
+  id: string;
+  kind: 'product_new' | 'broadcast';
+  title: string;
+  body: string;
+  image_url: string | null;
+  target_url: string | null;
+  status: string;
+  recipient_count: number;
+  failure_count: number;
+  error_message: string | null;
+  created_at: string;
+  sent_at: string | null;
+};
+
+function BroadcastNotifications() {
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [targetUrl, setTargetUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [history, setHistory] = useState<PushHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  const inputCls = 'w-full px-3.5 py-2.5 bg-brown-50 border border-brown-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brown-400/30 focus:border-brown-400 transition-all';
+  const labelCls = 'text-[11px] font-bold text-brown-400 mb-1.5 block uppercase tracking-wider';
+
+  const loadHistory = useCallback(async () => {
+    setLoadingHistory(true);
+    const { data, error } = await supabase
+      .from('push_notifications')
+      .select('id,kind,title,body,image_url,target_url,status,recipient_count,failure_count,error_message,created_at,sent_at')
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (error) {
+      console.error('Gagal memuat riwayat notifikasi:', error);
+      setNotice(`Riwayat belum dapat dimuat: ${error.message}`);
+    } else {
+      setHistory((data as PushHistoryItem[]) || []);
+    }
+    setLoadingHistory(false);
+  }, []);
+
+  useEffect(() => { void loadHistory(); }, [loadHistory]);
+
+  const uploadNotificationImage = async (file: File) => {
+    setUploading(true);
+    const url = await uploadImage(file, 'notifications');
+    setUploading(false);
+    if (url) setImageUrl(url);
+    else setNotice('Unggah gambar gagal. Coba pilih gambar lain.');
+  };
+
+  const sendBroadcast = async () => {
+    if (!title.trim() || !body.trim()) {
+      setNotice('Judul dan pesan wajib diisi.');
+      return;
+    }
+    if (targetUrl.trim()) {
+      try {
+        const rawTarget = targetUrl.trim();
+        if (rawTarget.startsWith('/')) {
+          if (rawTarget.startsWith('//')) throw new Error('protocol-relative');
+        } else if (new URL(rawTarget).protocol !== 'https:') {
+          throw new Error('protocol');
+        }
+      } catch {
+        setNotice('Tautan tidak valid. Gunakan URL HTTPS atau path internal, misalnya /?product=ID_PRODUK.');
+        return;
+      }
+    }
+    const confirmed = window.confirm(`Kirim broadcast ke semua perangkat yang terdaftar?\n\n${title.trim()}\n${body.trim()}`);
+    if (!confirmed) return;
+
+    setSending(true);
+    setNotice('');
+    const { data, error } = await supabase.functions.invoke('send-notification', {
+      body: {
+        action: 'send_broadcast',
+        title: title.trim(),
+        body: body.trim(),
+        image_url: imageUrl || null,
+        target_url: targetUrl.trim() || null,
+      },
+    });
+    setSending(false);
+    if (error) {
+      setNotice(`Pengiriman gagal: ${error.message}. Pastikan Edge Function dan Firebase sudah dikonfigurasi.`);
+      return;
+    }
+    setNotice(`Broadcast diproses. Terkirim ke ${data?.recipient_count ?? 0} perangkat; gagal ${data?.failure_count ?? 0}.`);
+    setTitle('');
+    setBody('');
+    setImageUrl('');
+    setTargetUrl('');
+    await loadHistory();
+  };
+
+  const statusLabel: Record<string, string> = {
+    pending: 'Menunggu', sending: 'Mengirim', sent: 'Terkirim', partial: 'Sebagian terkirim', failed: 'Gagal',
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-serif text-xl font-semibold text-brown-950 tracking-tight">Broadcast Notifikasi</h2>
+        <p className="text-brown-400 text-sm mt-1">Kirim pengumuman ke perangkat yang sudah mengizinkan notifikasi.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl border border-brown-100 p-5 sm:p-6 space-y-4">
+          <div>
+            <label className={labelCls}>Judul *</label>
+            <input value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} className={inputCls} placeholder="Contoh: Promo spesial minggu ini" />
+          </div>
+          <div>
+            <label className={labelCls}>Pesan *</label>
+            <textarea value={body} maxLength={500} onChange={(e) => setBody(e.target.value)} rows={4} className={inputCls} placeholder="Tulis pesan singkat untuk pelanggan..." />
+            <p className="text-[11px] text-brown-400 mt-1">{body.length}/500 karakter</p>
+          </div>
+          <div>
+            <label className={labelCls}>Gambar (opsional)</label>
+            <div className="flex items-center gap-3">
+              {imageUrl && <img src={imageUrl} alt="Pratinjau" className="w-16 h-16 rounded-xl object-cover border border-brown-100" />}
+              <label className="cursor-pointer bg-brown-100 hover:bg-brown-200 px-3.5 py-2 rounded-lg text-sm font-semibold text-brown-700 flex items-center gap-2">
+                <Upload className="h-4 w-4" /> {uploading ? 'Mengunggah...' : imageUrl ? 'Ganti gambar' : 'Pilih gambar'}
+                <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadNotificationImage(file);
+                  e.currentTarget.value = '';
+                }} />
+              </label>
+              {imageUrl && <button type="button" onClick={() => setImageUrl('')} className="text-red-500 text-sm font-medium">Hapus</button>}
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Tautan saat diketuk (opsional)</label>
+            <input value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} className={inputCls} placeholder="/?product=ID_PRODUK atau https://..." />
+          </div>
+          <button onClick={() => void sendBroadcast()} disabled={sending || uploading || !title.trim() || !body.trim()} className="w-full bg-brown-800 hover:bg-brown-900 text-white px-5 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+            <Send className="h-4 w-4" /> {sending ? 'Mengirim...' : 'Konfirmasi & Kirim Broadcast'}
+          </button>
+          {notice && <p role="status" className="text-sm text-brown-700 bg-brown-50 border border-brown-100 rounded-xl p-3">{notice}</p>}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-brown-100 p-5 sm:p-6">
+          <h3 className="text-sm font-bold text-brown-900 mb-3">Pratinjau Notifikasi</h3>
+          <div className="rounded-2xl border border-brown-100 bg-brown-50 p-3 flex gap-3 items-start">
+            <div className="w-12 h-12 rounded-xl bg-white border border-brown-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
+              {imageUrl ? <img src={imageUrl} alt="" className="w-full h-full object-cover" /> : <ChefHat className="h-5 w-5 text-brown-300" />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] text-brown-400 mb-1">BELUCIH</p>
+              <p className="text-sm font-bold text-brown-950 break-words">{title || 'Judul notifikasi'}</p>
+              <p className="text-sm text-brown-700 mt-1 whitespace-pre-wrap break-words">{body || 'Pesan notifikasi akan tampil di sini.'}</p>
+              {targetUrl && <p className="text-[11px] text-brown-500 mt-2 break-all">Tautan: {targetUrl}</p>}
+            </div>
+          </div>
+          <p className="text-xs text-brown-400 mt-3">Pratinjau ini mendekati tampilan pesan. Bentuk akhir dapat berbeda menurut versi Android.</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-brown-100 overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-brown-100">
+          <div>
+            <h3 className="text-sm font-bold text-brown-900">Riwayat Notifikasi</h3>
+            <p className="text-xs text-brown-400 mt-1">30 notifikasi terbaru, termasuk produk baru dan broadcast.</p>
+          </div>
+          <button onClick={() => void loadHistory()} disabled={loadingHistory} className="inline-flex items-center gap-2 text-sm font-semibold text-brown-700 hover:text-brown-950 disabled:opacity-50">
+            <RefreshCw className={`h-4 w-4 ${loadingHistory ? 'animate-spin' : ''}`} /> Segarkan
+          </button>
+        </div>
+        {loadingHistory ? (
+          <p className="p-5 text-sm text-brown-400">Memuat riwayat...</p>
+        ) : history.length === 0 ? (
+          <p className="p-5 text-sm text-brown-400">Belum ada riwayat notifikasi.</p>
+        ) : (
+          <div className="divide-y divide-brown-100">
+            {history.map((item) => (
+              <div key={item.id} className="p-4 sm:p-5 flex gap-3">
+                {item.image_url ? <img src={item.image_url} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" /> : <div className="w-12 h-12 rounded-xl bg-brown-50 flex items-center justify-center flex-shrink-0"><Bell className="h-5 w-5 text-brown-300" /></div>}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-bold text-brown-950 break-words">{item.title}</p>
+                    <span className="text-[10px] uppercase tracking-wide rounded-full bg-brown-100 px-2 py-1 text-brown-700">{item.kind === 'broadcast' ? 'Broadcast' : 'Produk baru'}</span>
+                    <span className="text-[10px] rounded-full bg-brown-50 px-2 py-1 text-brown-600">{statusLabel[item.status] || item.status}</span>
+                  </div>
+                  <p className="text-sm text-brown-600 mt-1 whitespace-pre-wrap">{item.body}</p>
+                  <p className="text-[11px] text-brown-400 mt-2">
+                    {new Date(item.created_at).toLocaleString('id-ID')} · {item.recipient_count} perangkat · gagal {item.failure_count}
+                  </p>
+                  {item.error_message && <p className="text-xs text-red-600 mt-1 break-words">{item.error_message}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

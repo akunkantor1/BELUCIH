@@ -21,3 +21,15 @@ dist-ssr
 *.sln
 *.sw?
 .env
+# Android build and local secrets
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/keystore.properties
+android/app/google-services.json
+*.keystore
+*.jks
+.vscode/*
+!.vscode/extensions.json
