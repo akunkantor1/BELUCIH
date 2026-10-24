@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+﻿import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -22,6 +22,7 @@ function setProductQuery(productId: string | null) {
 
 function AppContent() {
   const { user, isOwner, loading } = useAuth();
+  const isAndroidApp = Capacitor.getPlatform() === 'android';
   const [page, setPage] = useState<Page>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -205,6 +206,62 @@ actionListener = await PushNotifications.addListener(
     setPage('products');
   };
 
+  if (isAndroidApp) {
+    return (
+      <div className="min-h-screen bg-[#f7f7f4] text-neutral-900 pb-24">
+        <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white px-5 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-600">BELUCIH STORE</p>
+              <h1 className="mt-1 text-xl font-bold tracking-tight">Belanja lebih mudah.</h1>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400 text-lg font-black text-neutral-950">B</div>
+          </div>
+        </header>
+
+        <main className="min-h-[70vh]">
+          {selectedProduct ? (
+            <ProductDetailPage product={selectedProduct} onBack={backFromProduct} />
+          ) : page === 'home' ? (
+            <HomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} />
+          ) : page === 'products' ? (
+            <ProductsPage onSelectProduct={handleSelectProduct} />
+          ) : page === 'about' ? (
+            <AboutPage />
+          ) : page === 'contact' ? (
+            <ContactPage />
+          ) : null}
+        </main>
+
+        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
+          <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+            {[
+              { id: 'home', label: 'Beranda', icon: '⌂' },
+              { id: 'products', label: 'Produk', icon: '▦' },
+              { id: 'about', label: 'Tentang', icon: '◇' },
+              { id: 'contact', label: 'Kontak', icon: '☏' },
+            ].map((item) => {
+              const active = !selectedProduct && page === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => navigate(item.id as Page)}
+                  className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-xs font-semibold transition-colors ${
+                    active ? 'bg-amber-100 text-neutral-950' : 'text-neutral-500 hover:bg-neutral-100'
+                  }`}
+                >
+                  <span className="text-xl leading-none">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header onNavigate={navigate} currentPage={selectedProduct ? 'products' : page} />
@@ -237,3 +294,6 @@ function App() {
 }
 
 export default App;
+
+
+
