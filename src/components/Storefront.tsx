@@ -1,4 +1,4 @@
-import { Phone, Clock, MapPin, Menu, X, ChefHat } from 'lucide-react';
+﻿import { Phone, Clock, MapPin, Menu, X, ChefHat, UserRound } from 'lucide-react';
 import { useSettings } from '@/context/SettingsContext';
 import { useState } from 'react';
 
@@ -129,7 +129,7 @@ export function Footer() {
                 className="flex items-center gap-2.5 text-sm text-brown-400 hover:text-white transition-colors group"
               >
                 <span className="h-2 w-2 rounded-full bg-green-500 group-hover:scale-150 transition-transform" />
-                Admin 1 — {settings?.whatsapp_1}
+                Admin 1 â€” {settings?.whatsapp_1}
               </a>
               <a
                 href={`https://wa.me/${settings?.whatsapp_2?.replace(/^0/, '62')}`}
@@ -138,7 +138,7 @@ export function Footer() {
                 className="flex items-center gap-2.5 text-sm text-brown-400 hover:text-white transition-colors group"
               >
                 <span className="h-2 w-2 rounded-full bg-green-500 group-hover:scale-150 transition-transform" />
-                Admin 2 — {settings?.whatsapp_2}
+                Admin 2 â€” {settings?.whatsapp_2}
               </a>
             </div>
           </div>
@@ -151,3 +151,4 @@ export function Footer() {
     </footer>
   );
 }
+

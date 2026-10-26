@@ -1,12 +1,17 @@
-﻿import { X } from 'lucide-react';
+﻿import { X, House, Package, Info, Phone, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { useSettings } from '@/context/SettingsContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { supabase, type Product } from '@/lib/supabase';
 import { Header, Footer } from '@/components/Storefront';
 import { HomePage, ProductsPage, AboutPage, ContactPage } from '@/components/HomePage';
+import { AndroidHomePage } from '@/components/android/AndroidHomePage';
+import { PromotionalBanners } from '@/components/android/PromotionalBanners';
+import { AndroidProductsPage } from '@/components/android/AndroidProductsPage';
+import { AndroidProductDetailPage } from '@/components/android/AndroidProductDetailPage';
 import { ProductDetailPage } from '@/components/ProductDetailPage';
 import { OwnerLoginPage } from '@/components/OwnerLoginPage';
 import { OwnerDashboard } from '@/components/OwnerDashboard';
@@ -22,6 +27,7 @@ function setProductQuery(productId: string | null) {
 
 function AppContent() {
   const { user, isOwner, loading } = useAuth();
+  const { settings } = useSettings();
   const isAndroidApp = Capacitor.getPlatform() === 'android';
   const [page, setPage] = useState<Page>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -157,8 +163,7 @@ actionListener = await PushNotifications.addListener(
   const currentPath = window.location.pathname;
   const isOwnerRoute = currentPath === '/owner' || currentPath.startsWith('/owner/');
   const isLoginRoute = currentPath === '/login-owner';
-
-  if (isLoginRoute) {
+if (isLoginRoute) {
     if (user && isOwner) {
       window.location.href = '/owner';
       return null;
@@ -193,7 +198,8 @@ actionListener = await PushNotifications.addListener(
     return <OwnerDashboard />;
   }
 
-  const navigate = (p: Page) => {
+  // Etalase pelanggan dapat diakses tanpa login.
+const navigate = (p: Page) => {
     setSelectedProduct(null);
     setProductQuery(null);
     setPage(p);
@@ -209,23 +215,16 @@ actionListener = await PushNotifications.addListener(
   if (isAndroidApp) {
     return (
       <div className="min-h-screen bg-[#f7f7f4] text-neutral-900 pb-24">
-        <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white px-5 py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-600">BELUCIH STORE</p>
-              <h1 className="mt-1 text-xl font-bold tracking-tight">Belanja lebih mudah.</h1>
-            </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400 text-lg font-black text-neutral-950">B</div>
-          </div>
-        </header>
-
         <main className="min-h-[70vh]">
           {selectedProduct ? (
-            <ProductDetailPage product={selectedProduct} onBack={backFromProduct} />
+            <AndroidProductDetailPage product={selectedProduct} onBack={backFromProduct} />
           ) : page === 'home' ? (
-            <HomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} />
+            <>
+              <AndroidHomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} />
+              <PromotionalBanners />
+            </>
           ) : page === 'products' ? (
-            <ProductsPage onSelectProduct={handleSelectProduct} />
+            <AndroidProductsPage onSelectProduct={handleSelectProduct} />
           ) : page === 'about' ? (
             <AboutPage />
           ) : page === 'contact' ? (
@@ -234,12 +233,12 @@ actionListener = await PushNotifications.addListener(
         </main>
 
         <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
-          <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+          <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
             {[
-              { id: 'home', label: 'Beranda', icon: '⌂' },
-              { id: 'products', label: 'Produk', icon: '▦' },
-              { id: 'about', label: 'Tentang', icon: '◇' },
-              { id: 'contact', label: 'Kontak', icon: '☏' },
+              { id: 'home', label: 'Beranda', icon: House },
+              { id: 'products', label: 'Produk', icon: Package },
+              { id: 'about', label: 'Tentang', icon: Info },
+              { id: 'contact', label: 'Kontak', icon: Phone },
             ].map((item) => {
               const active = !selectedProduct && page === item.id;
               return (
@@ -251,7 +250,7 @@ actionListener = await PushNotifications.addListener(
                     active ? 'bg-amber-100 text-neutral-950' : 'text-neutral-500 hover:bg-neutral-100'
                   }`}
                 >
-                  <span className="text-xl leading-none">{item.icon}</span>
+                  <item.icon size={20} strokeWidth={1.8} aria-hidden="true" />
                   <span>{item.label}</span>
                 </button>
               );
@@ -294,6 +293,22 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

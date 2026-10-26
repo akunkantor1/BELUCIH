@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+﻿import { useEffect, useState, useCallback } from 'react';
 import { supabase, type Product, type Category, type ProductVariant, type StoreSettings } from '@/lib/supabase';
 import { uploadImage, formatPrice } from '@/lib/helpers';
 import { useSettings } from '@/context/SettingsContext';
@@ -8,8 +8,9 @@ import {
   Layers, Image as ImageIcon, Save, ChevronDown, ChevronRight, Check, ArrowLeft, Star, FileText, Bell, Send, RefreshCw,
 } from 'lucide-react';
 import { CatalogSection } from '@/components/CatalogGenerator';
+import { PromotionalBannersManager } from '@/components/PromotionalBannersManager';
 
-type Tab = 'products' | 'categories' | 'settings' | 'catalog' | 'notifications';
+type Tab = 'products' | 'categories' | 'settings' | 'catalog' | 'notifications' | 'banners';
 
 export function OwnerDashboard() {
   const { signOut } = useAuth();
@@ -48,6 +49,7 @@ export function OwnerDashboard() {
               { id: 'catalog' as Tab, label: 'Katalog', icon: FileText },
               { id: 'settings' as Tab, label: 'Pengaturan Toko', icon: Settings },
               { id: 'notifications' as Tab, label: 'Broadcast Notifikasi', icon: Bell },
+              { id: 'banners' as Tab, label: 'Banner Promosi', icon: ImageIcon },
             ].map((t) => (
               <button
                 key={t.id}
@@ -70,6 +72,7 @@ export function OwnerDashboard() {
         {tab === 'catalog' && <CatalogSection />}
         {tab === 'settings' && <StoreSettingsManager />}
         {tab === 'notifications' && <BroadcastNotifications />}
+        {tab === 'banners' && <PromotionalBannersManager />}
       </div>
     </div>
   );
@@ -695,7 +698,7 @@ function BroadcastNotifications() {
                   </div>
                   <p className="text-sm text-brown-600 mt-1 whitespace-pre-wrap">{item.body}</p>
                   <p className="text-[11px] text-brown-400 mt-2">
-                    {new Date(item.created_at).toLocaleString('id-ID')} · {item.recipient_count} perangkat · gagal {item.failure_count}
+                    {new Date(item.created_at).toLocaleString('id-ID')} Â· {item.recipient_count} perangkat Â· gagal {item.failure_count}
                   </p>
                   {item.error_message && <p className="text-xs text-red-600 mt-1 break-words">{item.error_message}</p>}
                 </div>
@@ -822,3 +825,4 @@ function Field({ label, value, onChange, inputCls, labelCls }: {
     </div>
   );
 }
+
