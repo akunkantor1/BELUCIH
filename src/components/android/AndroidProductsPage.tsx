@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Package, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase, type Category, type Product } from '@/lib/supabase';
 
@@ -34,12 +34,14 @@ export function AndroidProductsPage({ onSelectProduct }: Props) {
         supabase
           .from('products')
           .select('*, category:categories(*)')
+          .eq('catalog', 'belucih')
           .order('is_featured', { ascending: false })
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: false }),
         supabase
           .from('categories')
           .select('*')
+          .eq('catalog', 'belucih')
           .order('sort_order', { ascending: true }),
       ]);
 
@@ -261,3 +263,4 @@ export function AndroidProductsPage({ onSelectProduct }: Props) {
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -26,6 +26,7 @@ export type StoreSettings = {
 };
 
 export type Category = {
+  catalog?: 'belucih' | 'kps';
   id: string;
   name: string;
   icon: string | null;
@@ -48,6 +49,7 @@ export type ProductImage = {
 };
 
 export type Product = {
+  catalog?: 'belucih' | 'kps';
   id: string;
   category_id: string | null;
   name: string;
@@ -62,3 +64,4 @@ export type Product = {
   variants?: ProductVariant[];
   images?: ProductImage[];
 };
+

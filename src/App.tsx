@@ -9,6 +9,7 @@ import { supabase, type Product } from '@/lib/supabase';
 import { Header, Footer } from '@/components/Storefront';
 import { HomePage, ProductsPage, AboutPage, ContactPage } from '@/components/HomePage';
 import { AndroidHomePage } from '@/components/android/AndroidHomePage';
+import { KPSHomePage } from '@/components/android/KPSHomePage';
 import { PromotionalBanners } from '@/components/android/PromotionalBanners';
 import { AndroidProductsPage } from '@/components/android/AndroidProductsPage';
 import { AndroidProductDetailPage } from '@/components/android/AndroidProductDetailPage';
@@ -31,39 +32,54 @@ function AppContent() {
   const isAndroidApp = Capacitor.getPlatform() === 'android';
   const [page, setPage] = useState<Page>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProductCatalog, setSelectedProductCatalog] = useState<'belucih' | 'kps'>('belucih');
+  const [showKps, setShowKps] = useState(false);
+  const [kpsPage, setKpsPage] = useState<'home' | 'products' | 'about'>('home');
 
-  const openProductById = useCallback(async (id: string) => {
+  const openProductById = useCallback(async (id: string, catalog: 'belucih' | 'kps' = 'belucih') => {
     const { data, error } = await supabase
       .from('products')
       .select('*, category:categories(*)')
       .eq('id', id)
+      .eq('catalog', catalog)
       .maybeSingle();
     if (error || !data) {
       console.error('Tidak dapat membuka produk dari notifikasi:', error);
       return;
     }
     setSelectedProduct(data as Product);
+    setSelectedProductCatalog(catalog);
+    setShowKps(catalog === 'kps');
+    if (catalog === 'kps') setKpsPage('products');
     setPage('products');
     setProductQuery(id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   const handleSelectProduct = useCallback(async (product: Product) => {
+    const catalog = product.catalog === 'kps' ? 'kps' : 'belucih';
     const { data } = await supabase
       .from('products')
       .select('*, category:categories(*)')
       .eq('id', product.id)
+      .eq('catalog', catalog)
       .maybeSingle();
     const selected = (data as Product) || product;
     setSelectedProduct(selected);
+    setSelectedProductCatalog(catalog);
+    setShowKps(catalog === 'kps');
+    if (catalog === 'kps') setKpsPage('products');
     setPage('products');
     setProductQuery(selected.id);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
   useEffect(() => {
-    const productId = new URLSearchParams(window.location.search).get('product');
-    if (productId) void openProductById(productId);
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get('product');
+    const catalog = params.get('catalog') === 'kps' ? 'kps' : 'belucih';
+    if (productId) void openProductById(productId, catalog);
+    else if (catalog === 'kps') setShowKps(true);
   }, [openProductById]);
 
   // Register this Android installation for push messages and handle notification taps.
@@ -101,7 +117,11 @@ actionListener = await PushNotifications.addListener(
           const productId = typeof data.productId === 'string' ? data.productId : '';
           const targetUrl = typeof data.targetUrl === 'string' ? data.targetUrl : '';
           if (productId) {
-            void openProductById(productId);
+            let catalog: 'belucih' | 'kps' = data.catalog === 'kps' ? 'kps' : 'belucih';
+            if (targetUrl) {
+              try { if (new URL(targetUrl, window.location.origin).searchParams.get('catalog') === 'kps') catalog = 'kps'; } catch { /* URL akan diabaikan */ }
+            }
+            void openProductById(productId, catalog);
             return;
           }
           if (targetUrl) {
@@ -200,8 +220,14 @@ if (isLoginRoute) {
 
   // Etalase pelanggan dapat diakses tanpa login.
 const navigate = (p: Page) => {
+    setShowKps(false);
     setSelectedProduct(null);
+    setSelectedProductCatalog('belucih');
     setProductQuery(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('catalog');
+    url.searchParams.delete('product');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
     setPage(p);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -209,7 +235,30 @@ const navigate = (p: Page) => {
   const backFromProduct = () => {
     setSelectedProduct(null);
     setProductQuery(null);
+    if (selectedProductCatalog === 'kps') {
+      setKpsPage('products');
+      setShowKps(true);
+      const url = new URL(window.location.href);
+      url.searchParams.set('catalog', 'kps');
+      url.searchParams.delete('product');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      return;
+    }
     setPage('products');
+  };
+
+  const openKps = () => {
+    setSelectedProduct(null);
+    setSelectedProductCatalog('kps');
+    setProductQuery(null);
+    setPage('home');
+    setKpsPage('home');
+    setShowKps(true);
+    const url = new URL(window.location.href);
+    url.searchParams.set('catalog', 'kps');
+    url.searchParams.delete('product');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (isAndroidApp) {
@@ -218,9 +267,23 @@ const navigate = (p: Page) => {
         <main className="min-h-[70vh]">
           {selectedProduct ? (
             <AndroidProductDetailPage product={selectedProduct} onBack={backFromProduct} />
+          ) : showKps ? (
+            <KPSHomePage
+              onBack={() => {
+                setShowKps(false);
+                setSelectedProductCatalog('belucih');
+                const url = new URL(window.location.href);
+                url.searchParams.delete('catalog');
+                url.searchParams.delete('product');
+                window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+              }}
+              onSelectProduct={handleSelectProduct}
+              page={kpsPage}
+              onNavigate={setKpsPage}
+            />
           ) : page === 'home' ? (
             <>
-              <AndroidHomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} />
+              <AndroidHomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} onOpenKps={openKps} />
               <PromotionalBanners />
             </>
           ) : page === 'products' ? (
@@ -232,7 +295,45 @@ const navigate = (p: Page) => {
           ) : null}
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
+        {showKps ? (
+          <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+            <div className="mx-auto grid max-w-lg grid-cols-3 gap-1">
+              {[
+                { id: 'home' as const, label: 'Beranda', icon: House },
+                { id: 'products' as const, label: 'Produk', icon: Package },
+                { id: 'about' as const, label: 'Tentang', icon: Info },
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = !selectedProduct && kpsPage === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedProduct(null);
+                      setSelectedProductCatalog('kps');
+                      setProductQuery(null);
+                      setKpsPage(item.id);
+                      setShowKps(true);
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('catalog', 'kps');
+                      url.searchParams.delete('product');
+                      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-xs font-semibold ${
+                      active ? 'bg-sky-50 text-sky-800' : 'text-slate-500'
+                    }`}
+                  >
+                    <Icon size={20} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        ) : (
+<nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
           <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
             {[
               { id: 'home', label: 'Beranda', icon: House },
@@ -257,6 +358,7 @@ const navigate = (p: Page) => {
             })}
           </div>
         </nav>
+        )}
       </div>
     );
   }
@@ -293,6 +395,11 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
 
 
 

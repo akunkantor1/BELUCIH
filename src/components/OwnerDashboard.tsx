@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase, type Product, type Category, type ProductVariant, type StoreSettings } from '@/lib/supabase';
 import { uploadImage, formatPrice } from '@/lib/helpers';
 import { useSettings } from '@/context/SettingsContext';
@@ -10,7 +10,7 @@ import {
 import { CatalogSection } from '@/components/CatalogGenerator';
 import { PromotionalBannersManager } from '@/components/PromotionalBannersManager';
 
-type Tab = 'products' | 'categories' | 'settings' | 'catalog' | 'notifications' | 'banners';
+type Tab = 'products' | 'categories' | 'settings' | 'catalog' | 'notifications' | 'banners' | 'kps';
 
 export function OwnerDashboard() {
   const { signOut } = useAuth();
@@ -50,6 +50,7 @@ export function OwnerDashboard() {
               { id: 'settings' as Tab, label: 'Pengaturan Toko', icon: Settings },
               { id: 'notifications' as Tab, label: 'Broadcast Notifikasi', icon: Bell },
               { id: 'banners' as Tab, label: 'Banner Promosi', icon: ImageIcon },
+              { id: 'kps' as Tab, label: 'Pengaturan KPS', icon: Layers },
             ].map((t) => (
               <button
                 key={t.id}
@@ -73,6 +74,7 @@ export function OwnerDashboard() {
         {tab === 'settings' && <StoreSettingsManager />}
         {tab === 'notifications' && <BroadcastNotifications />}
         {tab === 'banners' && <PromotionalBannersManager />}
+        {tab === 'kps' && <KPSCatalogSettings />}
       </div>
     </div>
   );
@@ -84,22 +86,27 @@ function ProductsManager() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [selectedCatalog, setSelectedCatalog] = useState<'belucih' | 'kps'>('belucih');
 
   const fetchProducts = useCallback(async () => {
-    const { data } = await supabase
+    setLoading(true);
+    const { data, error } = await supabase
       .from('products')
       .select('*, category:categories(*)')
+      .eq('catalog', selectedCatalog)
       .order('created_at', { ascending: false });
+    if (error) console.error('Gagal memuat produk:', error.message);
     setProducts((data as Product[]) || []);
     setLoading(false);
-  }, []);
+  }, [selectedCatalog]);
 
-  const fetchCategories = async () => {
-    const { data } = await supabase.from('categories').select('*').order('sort_order');
+  const fetchCategories = useCallback(async () => {
+    const { data, error } = await supabase.from('categories').select('*').eq('catalog', selectedCatalog).order('sort_order');
+    if (error) console.error('Gagal memuat kategori:', error.message);
     setCategories((data as Category[]) || []);
-  };
+  }, [selectedCatalog]);
 
-  useEffect(() => { fetchProducts(); fetchCategories(); }, [fetchProducts]);
+  useEffect(() => { void fetchProducts(); void fetchCategories(); }, [fetchProducts, fetchCategories]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Hapus produk ini?')) return;
@@ -111,6 +118,7 @@ function ProductsManager() {
     return (
       <ProductForm
         product={editing}
+        catalog={editing?.catalog === 'kps' ? 'kps' : selectedCatalog}
         categories={categories}
         onClose={() => { setShowForm(false); setEditing(null); }}
         onSaved={() => { setShowForm(false); setEditing(null); fetchProducts(); }}
@@ -123,7 +131,11 @@ function ProductsManager() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="font-serif text-xl font-semibold text-brown-950 tracking-tight">Produk</h2>
-          <p className="text-brown-400 text-sm mt-0.5">{products.length} produk</p>
+          <p className="text-brown-400 text-sm mt-0.5">{products.length} produk · katalog {selectedCatalog.toUpperCase()}</p>
+          <div className="mt-3 flex gap-2">
+            <button onClick={() => setSelectedCatalog('belucih')} className={`rounded-xl px-4 py-2 text-sm font-bold ${selectedCatalog === 'belucih' ? 'bg-amber-400 text-neutral-950' : 'bg-brown-100 text-brown-700'}`}>BELUCIH</button>
+            <button onClick={() => setSelectedCatalog('kps')} className={`rounded-xl px-4 py-2 text-sm font-bold ${selectedCatalog === 'kps' ? 'bg-blue-700 text-white' : 'bg-blue-50 text-blue-800'}`}>KPS</button>
+          </div>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -194,8 +206,9 @@ function ProductsManager() {
   );
 }
 
-function ProductForm({ product, categories, onClose, onSaved }: {
+function ProductForm({ product, catalog, categories, onClose, onSaved }: {
   product: Product | null;
+  catalog: 'belucih' | 'kps';
   categories: Category[];
   onClose: () => void;
   onSaved: () => void;
@@ -236,7 +249,7 @@ function ProductForm({ product, categories, onClose, onSaved }: {
     if (!name.trim()) return;
     setSaving(true);
     const payload = {
-      name, description: description || null, category_id: categoryId || null,
+      name, catalog, description: description || null, category_id: categoryId || null,
       price: price ? parseFloat(price) : null, stock_status: stockStatus,
       is_featured: isFeatured, main_image_url: mainImage || null,
     };
@@ -260,17 +273,41 @@ function ProductForm({ product, categories, onClose, onSaved }: {
       createdNewProduct = true;
     }
     if (productId) {
-      if (product) await supabase.from('product_variants').delete().eq('product_id', productId);
+      if (product) {
+        const { error } = await supabase.from('product_variants').delete().eq('product_id', productId);
+        if (error) {
+          setSaving(false);
+          alert('Produk tersimpan, tetapi gagal menghapus varian lama: ' + error.message);
+          return;
+        }
+      }
       if (variants.length > 0) {
-        await supabase.from('product_variants').insert(
+        const { error } = await supabase.from('product_variants').insert(
           variants.map((v) => ({ product_id: productId, name: v.name, price: v.price, stock: v.stock || 0 }))
         );
+        if (error) {
+          setSaving(false);
+          alert('Produk tersimpan, tetapi gagal menyimpan varian: ' + error.message);
+          return;
+        }
       }
-      if (product) await supabase.from('product_images').delete().eq('product_id', productId);
+      if (product) {
+        const { error } = await supabase.from('product_images').delete().eq('product_id', productId);
+        if (error) {
+          setSaving(false);
+          alert('Produk tersimpan, tetapi gagal menghapus gambar lama: ' + error.message);
+          return;
+        }
+      }
       if (extraImages.length > 0) {
-        await supabase.from('product_images').insert(
+        const { error } = await supabase.from('product_images').insert(
           extraImages.map((img, idx) => ({ product_id: productId, image_url: img.image_url, sort_order: idx }))
         );
+        if (error) {
+          setSaving(false);
+          alert('Produk tersimpan, tetapi gagal menyimpan gambar tambahan: ' + error.message);
+          return;
+        }
       }
     }
    
@@ -439,20 +476,24 @@ function CategoriesManager() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
+  const [selectedCatalog, setSelectedCatalog] = useState<'belucih' | 'kps'>('belucih');
 
   const fetchCategories = useCallback(async () => {
-    const { data } = await supabase.from('categories').select('*').order('sort_order');
+    setLoading(true);
+    const { data, error } = await supabase.from('categories').select('*').eq('catalog', selectedCatalog).order('sort_order');
+    if (error) console.error('Gagal memuat kategori:', error.message);
     setCategories((data as Category[]) || []);
     setLoading(false);
-  }, []);
+  }, [selectedCatalog]);
 
   useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   const handleAdd = async () => {
     if (!name.trim()) return;
-    await supabase.from('categories').insert({ name, sort_order: categories.length });
+    const { error } = await supabase.from('categories').insert({ name: name.trim(), catalog: selectedCatalog, sort_order: categories.length });
+    if (error) { alert('Gagal menambahkan kategori: ' + error.message); return; }
     setName('');
-    fetchCategories();
+    void fetchCategories();
   };
 
   const handleDelete = async (id: string) => {
@@ -473,7 +514,13 @@ function CategoriesManager() {
 
   return (
     <div>
-      <h2 className="font-serif text-xl font-semibold text-brown-950 tracking-tight mb-6">Kategori</h2>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-serif text-xl font-semibold text-brown-950 tracking-tight">Kategori</h2>
+        <div className="flex gap-2">
+          <button onClick={() => setSelectedCatalog('belucih')} className={`rounded-xl px-4 py-2 text-sm font-bold ${selectedCatalog === 'belucih' ? 'bg-amber-400 text-neutral-950' : 'bg-brown-100 text-brown-700'}`}>BELUCIH</button>
+          <button onClick={() => setSelectedCatalog('kps')} className={`rounded-xl px-4 py-2 text-sm font-bold ${selectedCatalog === 'kps' ? 'bg-blue-700 text-white' : 'bg-blue-50 text-blue-800'}`}>KPS</button>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl border border-brown-100 p-5 mb-5">
         <div className="flex gap-2">
@@ -731,15 +778,20 @@ function StoreSettingsManager() {
 
   const handleSave = async () => {
     setSaving(true);
-    await supabase.from('store_settings').update({
+    const { error } = await supabase.from('store_settings').update({
       store_name: form.store_name, tagline: form.tagline, description: form.description,
       logo_url: form.logo_url, hero_image_url: form.hero_image_url, hero_title: form.hero_title,
       hero_subtitle: form.hero_subtitle, address: form.address, operating_hours: form.operating_hours,
       whatsapp_1: form.whatsapp_1, whatsapp_2: form.whatsapp_2,
     }).eq('id', form.id);
     setSaving(false);
+    if (error) {
+      setSaved(false);
+      alert('Gagal menyimpan pengaturan toko: ' + error.message);
+      return;
+    }
     setSaved(true);
-    refresh();
+    await refresh();
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -826,3 +878,53 @@ function Field({ label, value, onChange, inputCls, labelCls }: {
   );
 }
 
+
+
+function KPSCatalogSettings() {
+  const [bannerText, setBannerText] = useState('Klik untuk melihat produk KPS');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    supabase.from('catalog_settings').select('banner_text').eq('catalog', 'kps').maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) setNotice('Gagal memuat pengaturan KPS: ' + error.message);
+        else if (data?.banner_text) setBannerText(data.banner_text);
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  const save = async () => {
+    const value = bannerText.trim();
+    if (!value) { setNotice('Teks banner tidak boleh kosong.'); return; }
+    setSaving(true); setNotice('');
+    const { error } = await supabase.from('catalog_settings').upsert(
+      { catalog: 'kps', banner_text: value, updated_at: new Date().toISOString() },
+      { onConflict: 'catalog' }
+    );
+    setSaving(false);
+    setNotice(error ? 'Gagal menyimpan: ' + error.message : 'Pengaturan banner KPS berhasil disimpan.');
+  };
+
+  return (
+    <section className="mx-auto max-w-3xl space-y-5">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Katalog terpisah</p>
+        <h2 className="mt-1 font-serif text-2xl font-semibold text-brown-950">Pengaturan KPS</h2>
+        <p className="mt-1 text-sm text-brown-500">Atur teks banner KPS yang tampil di beranda BELUCIH dan halaman KPS.</p>
+      </div>
+      <div className="rounded-2xl border border-blue-100 bg-white p-5 sm:p-6 space-y-4">
+        <label htmlFor="kps-banner-text" className="block text-sm font-bold text-brown-800">Teks banner</label>
+        <textarea id="kps-banner-text" value={bannerText} onChange={(e) => setBannerText(e.target.value)} maxLength={180} rows={3} disabled={loading || saving} className="w-full resize-y rounded-xl border border-blue-100 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60" placeholder="Tulis teks singkat untuk banner KPS" />
+        <div className="flex items-center justify-between gap-3 text-xs text-brown-400"><span>Maksimal 180 karakter</span><span>{bannerText.length}/180</span></div>
+        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900"><span className="mr-2 text-red-600">●</span>{bannerText || 'Pratinjau teks banner KPS'}</div>
+        <button type="button" onClick={save} disabled={loading || saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><Save className="h-4 w-4" />{saving ? 'Menyimpan…' : 'Simpan banner KPS'}</button>
+        {notice && <p role="status" className={`text-sm ${notice.startsWith('Gagal') ? 'text-red-600' : 'text-emerald-700'}`}>{notice}</p>}
+      </div>
+    </section>
+  );
+}

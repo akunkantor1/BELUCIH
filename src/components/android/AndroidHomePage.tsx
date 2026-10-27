@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { UserRound,
   ArrowRight,
   Bell,
@@ -15,6 +15,7 @@ import { useSettings } from '@/context/SettingsContext';
 type Props = {
   onNavigate: (page: 'home' | 'products' | 'about' | 'contact') => void;
   onSelectProduct: (product: Product) => void;
+  onOpenKps: () => void;
 };
 
 const rupiah = (value: number | null | undefined) =>
@@ -75,7 +76,7 @@ function ProductTile({
   );
 }
 
-export function AndroidHomePage({ onNavigate, onSelectProduct }: Props) {
+export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Props) {
   const { settings } = useSettings();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -83,6 +84,16 @@ export function AndroidHomePage({ onNavigate, onSelectProduct }: Props) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [kpsBannerText, setKpsBannerText] = useState('Klik untuk melihat produk KPS');
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from('catalog_settings').select('banner_text').eq('catalog', 'kps').maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.banner_text) setKpsBannerText(data.banner_text);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,12 +106,14 @@ export function AndroidHomePage({ onNavigate, onSelectProduct }: Props) {
         supabase
           .from('products')
           .select('*, category:categories(*)')
+          .eq('catalog', 'belucih')
           .order('is_featured', { ascending: false })
           .order('sort_order', { ascending: true })
           .order('created_at', { ascending: false }),
         supabase
           .from('categories')
           .select('*')
+          .eq('catalog', 'belucih')
           .order('sort_order', { ascending: true }),
       ]);
 
@@ -308,6 +321,25 @@ export function AndroidHomePage({ onNavigate, onSelectProduct }: Props) {
             </p>
           )}
         </section>
+
+        {!search && !activeCategory && (
+          <button
+            type="button"
+            onClick={onOpenKps}
+            className="group flex w-full items-center justify-between overflow-hidden rounded-xl border border-blue-200 bg-white text-left shadow-sm transition active:scale-[0.99]"
+          >
+            <span className="flex min-w-0 items-center gap-3 px-3 py-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-xs font-black tracking-tight text-white">KPS</span>
+              <span className="min-w-0">
+                <span className="block text-xs font-extrabold tracking-wide text-blue-800">KATALOG KPS</span>
+                <span className="block truncate text-[11px] text-slate-600">{kpsBannerText}</span>
+              </span>
+            </span>
+            <span className="mr-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <ChevronRight size={16} />
+            </span>
+          </button>
+        )}
 
         {!search && !activeCategory && (
           <section>
