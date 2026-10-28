@@ -745,7 +745,7 @@ function BroadcastNotifications() {
                   </div>
                   <p className="text-sm text-brown-600 mt-1 whitespace-pre-wrap">{item.body}</p>
                   <p className="text-[11px] text-brown-400 mt-2">
-                    {new Date(item.created_at).toLocaleString('id-ID')} Â· {item.recipient_count} perangkat Â· gagal {item.failure_count}
+                    {new Date(item.created_at).toLocaleString('id-ID')} · {item.recipient_count} perangkat · gagal {item.failure_count}
                   </p>
                   {item.error_message && <p className="text-xs text-red-600 mt-1 break-words">{item.error_message}</p>}
                 </div>
@@ -881,49 +881,295 @@ function Field({ label, value, onChange, inputCls, labelCls }: {
 
 
 function KPSCatalogSettings() {
-  const [bannerText, setBannerText] = useState('Klik untuk melihat produk KPS');
+  const [form, setForm] = useState({
+    store_name: 'KPS',
+    banner_text: 'Klik untuk melihat produk KPS',
+    logo_url: '',
+    hero_image_url: '',
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
     let active = true;
-    supabase.from('catalog_settings').select('banner_text').eq('catalog', 'kps').maybeSingle()
+
+    supabase
+      .from('catalog_settings')
+      .select('store_name, banner_text, logo_url, hero_image_url')
+      .eq('catalog', 'kps')
+      .maybeSingle()
       .then(({ data, error }) => {
         if (!active) return;
-        if (error) setNotice('Gagal memuat pengaturan KPS: ' + error.message);
-        else if (data?.banner_text) setBannerText(data.banner_text);
+
+        if (error) {
+          setNotice('Gagal memuat pengaturan KPS: ' + error.message);
+        } else if (data) {
+          setForm({
+            store_name: data.store_name || 'KPS',
+            banner_text: data.banner_text || 'Klik untuk melihat produk KPS',
+            logo_url: data.logo_url || '',
+            hero_image_url: data.hero_image_url || '',
+          });
+        }
+
         setLoading(false);
       });
+
     return () => { active = false; };
   }, []);
 
-  const save = async () => {
-    const value = bannerText.trim();
-    if (!value) { setNotice('Teks banner tidak boleh kosong.'); return; }
-    setSaving(true); setNotice('');
-    const { error } = await supabase.from('catalog_settings').upsert(
-      { catalog: 'kps', banner_text: value, updated_at: new Date().toISOString() },
-      { onConflict: 'catalog' }
-    );
-    setSaving(false);
-    setNotice(error ? 'Gagal menyimpan: ' + error.message : 'Pengaturan banner KPS berhasil disimpan.');
+  const update = (field: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
   };
+
+  const uploadBrandImage = async (
+    file: File,
+    field: 'logo_url' | 'hero_image_url',
+  ) => {
+    if (!file.type.startsWith('image/')) {
+      setNotice('Pilih file gambar yang valid.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setNotice('Ukuran gambar maksimal 5 MB.');
+      return;
+    }
+
+    setUploading(true);
+    setNotice('');
+
+    try {
+      const extension = file.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'jpg';
+      const path = `kps/branding/${field.replace('_url', '')}-${crypto.randomUUID()}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('store-assets')
+        .upload(path, file, { upsert: false, contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('store-assets').getPublicUrl(path);
+      update(field, data.publicUrl);
+      setNotice('Gambar berhasil diunggah. Tekan Simpan untuk menerapkan perubahan.');
+    } catch (error) {
+      setNotice(
+        'Gagal mengunggah gambar: ' +
+        (error instanceof Error ? error.message : String(error)),
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const save = async () => {
+    const storeName = form.store_name.trim();
+    const bannerText = form.banner_text.trim();
+
+    if (!storeName) {
+      setNotice('Nama toko tidak boleh kosong.');
+      return;
+    }
+
+    if (!bannerText) {
+      setNotice('Teks banner tidak boleh kosong.');
+      return;
+    }
+
+    setSaving(true);
+    setNotice('');
+
+    const { error } = await supabase.from('catalog_settings').upsert(
+      {
+        catalog: 'kps',
+        store_name: storeName,
+        banner_text: bannerText,
+        logo_url: form.logo_url || null,
+        hero_image_url: form.hero_image_url || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'catalog' },
+    );
+
+    setSaving(false);
+    setNotice(
+      error
+        ? 'Gagal menyimpan: ' + error.message
+        : 'Pengaturan branding KPS berhasil disimpan.',
+    );
+  };
+
+  const disabled = loading || saving || uploading;
+  const inputClass =
+    'w-full rounded-xl border border-blue-100 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60';
 
   return (
     <section className="mx-auto max-w-3xl space-y-5">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">Katalog terpisah</p>
-        <h2 className="mt-1 font-serif text-2xl font-semibold text-brown-950">Pengaturan KPS</h2>
-        <p className="mt-1 text-sm text-brown-500">Atur teks banner KPS yang tampil di beranda BELUCIH dan halaman KPS.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
+          Katalog terpisah
+        </p>
+        <h2 className="mt-1 font-serif text-2xl font-semibold text-brown-950">
+          Pengaturan KPS
+        </h2>
+        <p className="mt-1 text-sm text-brown-500">
+          Kelola identitas toko, logo, gambar hero, dan teks banner katalog KPS.
+        </p>
       </div>
-      <div className="rounded-2xl border border-blue-100 bg-white p-5 sm:p-6 space-y-4">
-        <label htmlFor="kps-banner-text" className="block text-sm font-bold text-brown-800">Teks banner</label>
-        <textarea id="kps-banner-text" value={bannerText} onChange={(e) => setBannerText(e.target.value)} maxLength={180} rows={3} disabled={loading || saving} className="w-full resize-y rounded-xl border border-blue-100 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60" placeholder="Tulis teks singkat untuk banner KPS" />
-        <div className="flex items-center justify-between gap-3 text-xs text-brown-400"><span>Maksimal 180 karakter</span><span>{bannerText.length}/180</span></div>
-        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900"><span className="mr-2 text-red-600">●</span>{bannerText || 'Pratinjau teks banner KPS'}</div>
-        <button type="button" onClick={save} disabled={loading || saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"><Save className="h-4 w-4" />{saving ? 'Menyimpan…' : 'Simpan banner KPS'}</button>
-        {notice && <p role="status" className={`text-sm ${notice.startsWith('Gagal') ? 'text-red-600' : 'text-emerald-700'}`}>{notice}</p>}
+
+      <div className="space-y-5 rounded-2xl border border-blue-100 bg-white p-5 sm:p-6">
+        <div>
+          <label htmlFor="kps-store-name" className="mb-2 block text-sm font-bold text-brown-800">
+            Nama toko
+          </label>
+          <input
+            id="kps-store-name"
+            value={form.store_name}
+            onChange={(e) => update('store_name', e.target.value)}
+            maxLength={80}
+            disabled={disabled}
+            className={inputClass}
+            placeholder="Nama toko KPS"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="kps-banner-text" className="mb-2 block text-sm font-bold text-brown-800">
+            Teks banner
+          </label>
+          <textarea
+            id="kps-banner-text"
+            value={form.banner_text}
+            onChange={(e) => update('banner_text', e.target.value)}
+            maxLength={180}
+            rows={3}
+            disabled={disabled}
+            className={inputClass}
+            placeholder="Tulis teks singkat untuk banner KPS"
+          />
+          <div className="mt-1 text-right text-xs text-brown-400">
+            {form.banner_text.length}/180 karakter
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-bold text-brown-800">Logo toko</p>
+          {form.logo_url && (
+            <img
+              src={form.logo_url}
+              alt="Pratinjau logo KPS"
+              className="mb-3 h-20 w-20 rounded-xl border border-blue-100 bg-white object-contain p-2"
+            />
+          )}
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-blue-100 px-4 py-3 text-sm font-semibold text-blue-800 hover:bg-blue-50">
+            <Upload className="h-4 w-4" />
+            {uploading ? 'Mengunggah…' : 'Pilih logo'}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={disabled}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadBrandImage(file, 'logo_url');
+                e.currentTarget.value = '';
+              }}
+            />
+          </label>
+          {form.logo_url && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => update('logo_url', '')}
+              className="ml-3 text-sm font-medium text-red-600 disabled:opacity-50"
+            >
+              Hapus logo
+            </button>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-bold text-brown-800">Gambar hero/banner</p>
+          {form.hero_image_url && (
+            <img
+              src={form.hero_image_url}
+              alt="Pratinjau gambar hero KPS"
+              className="mb-3 aspect-[16/7] w-full rounded-xl border border-blue-100 object-cover"
+            />
+          )}
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-blue-100 px-4 py-3 text-sm font-semibold text-blue-800 hover:bg-blue-50">
+            <Upload className="h-4 w-4" />
+            {uploading ? 'Mengunggah…' : 'Pilih gambar hero'}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={disabled}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadBrandImage(file, 'hero_image_url');
+                e.currentTarget.value = '';
+              }}
+            />
+          </label>
+          {form.hero_image_url && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => update('hero_image_url', '')}
+              className="ml-3 text-sm font-medium text-red-600 disabled:opacity-50"
+            >
+              Hapus gambar
+            </button>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-700">
+            Pratinjau branding
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            {form.logo_url ? (
+              <img src={form.logo_url} alt="" className="h-12 w-12 rounded-lg bg-white object-contain p-1" />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-700 text-lg font-black text-white">
+                K
+              </div>
+            )}
+            <div>
+              <p className="font-bold text-blue-950">{form.store_name || 'Nama toko KPS'}</p>
+              <p className="mt-1 text-sm text-blue-800">{form.banner_text || 'Teks banner KPS'}</p>
+            </div>
+          </div>
+          {form.hero_image_url && (
+            <img
+              src={form.hero_image_url}
+              alt=""
+              className="mt-4 aspect-[16/7] w-full rounded-xl object-cover"
+            />
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={disabled}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Save className="h-4 w-4" />
+          {saving ? 'Menyimpan…' : 'Simpan pengaturan KPS'}
+        </button>
+
+        {notice && (
+          <p
+            role="status"
+            className={`text-sm ${notice.startsWith('Gagal') ? 'text-red-600' : 'text-emerald-700'}`}
+          >
+            {notice}
+          </p>
+        )}
       </div>
     </section>
   );

@@ -85,12 +85,16 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [kpsBannerText, setKpsBannerText] = useState('Klik untuk melihat produk KPS');
+  const [kpsLogoUrl, setKpsLogoUrl] = useState<string | null>(null);
+  const [kpsStoreName, setKpsStoreName] = useState('KPS');
 
   useEffect(() => {
     let cancelled = false;
-    supabase.from('catalog_settings').select('banner_text').eq('catalog', 'kps').maybeSingle()
+    supabase.from('catalog_settings').select('banner_text, store_name, logo_url').eq('catalog', 'kps').maybeSingle()
       .then(({ data }) => {
         if (!cancelled && data?.banner_text) setKpsBannerText(data.banner_text);
+        if (!cancelled && data?.store_name) setKpsStoreName(data.store_name);
+        if (!cancelled) setKpsLogoUrl(data?.logo_url || null);
       });
     return () => { cancelled = true; };
   }, []);
@@ -329,9 +333,9 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
             className="group flex w-full items-center justify-between overflow-hidden rounded-xl border border-blue-200 bg-white text-left shadow-sm transition active:scale-[0.99]"
           >
             <span className="flex min-w-0 items-center gap-3 px-3 py-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-xs font-black tracking-tight text-white">KPS</span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-blue-700 text-xs font-black tracking-tight text-white">{kpsLogoUrl ? <img src={kpsLogoUrl} alt={kpsStoreName} className="h-full w-full object-contain" /> : "KPS"}</span>
               <span className="min-w-0">
-                <span className="block text-xs font-extrabold tracking-wide text-blue-800">KATALOG KPS</span>
+                <span className="block text-xs font-extrabold tracking-wide text-blue-800">{kpsStoreName.toUpperCase()}</span>
                 <span className="block truncate text-[11px] text-slate-600">{kpsBannerText}</span>
               </span>
             </span>
@@ -472,8 +476,3 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
     </div>
   );
 }
-
-
-
-
-
