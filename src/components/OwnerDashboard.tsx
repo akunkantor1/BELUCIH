@@ -10,7 +10,7 @@ import {
 import { CatalogSection } from '@/components/CatalogGenerator';
 import { PromotionalBannersManager } from '@/components/PromotionalBannersManager';
 
-type Tab = 'products' | 'categories' | 'settings' | 'catalog' | 'notifications' | 'banners' | 'kps';
+type Tab = 'products' | 'categories' | 'settings' | 'catalog' | 'notifications' | 'banners' | 'kpsBanners' | 'kps';
 
 export function OwnerDashboard() {
   const { signOut } = useAuth();
@@ -49,7 +49,8 @@ export function OwnerDashboard() {
               { id: 'catalog' as Tab, label: 'Katalog', icon: FileText },
               { id: 'settings' as Tab, label: 'Pengaturan Toko', icon: Settings },
               { id: 'notifications' as Tab, label: 'Broadcast Notifikasi', icon: Bell },
-              { id: 'banners' as Tab, label: 'Banner Promosi', icon: ImageIcon },
+              { id: 'banners' as Tab, label: 'Banner Promosi BELUCIH', icon: ImageIcon },
+              { id: 'kpsBanners' as Tab, label: 'Banner Promosi KPS', icon: ImageIcon },
               { id: 'kps' as Tab, label: 'Pengaturan KPS', icon: Layers },
             ].map((t) => (
               <button
@@ -73,7 +74,8 @@ export function OwnerDashboard() {
         {tab === 'catalog' && <CatalogSection />}
         {tab === 'settings' && <StoreSettingsManager />}
         {tab === 'notifications' && <BroadcastNotifications />}
-        {tab === 'banners' && <PromotionalBannersManager />}
+        {tab === 'banners' && <PromotionalBannersManager catalog="belucih" />}
+        {tab === 'kpsBanners' && <PromotionalBannersManager catalog="kps" />}
         {tab === 'kps' && <KPSCatalogSettings />}
       </div>
     </div>

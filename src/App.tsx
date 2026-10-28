@@ -1,4 +1,4 @@
-﻿import { X, House, Package, Info, Phone, UserRound } from 'lucide-react';
+import { X, House, Package, Info, Phone, UserRound } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -9,15 +9,15 @@ import { supabase, type Product } from '@/lib/supabase';
 import { Header, Footer } from '@/components/Storefront';
 import { HomePage, ProductsPage, AboutPage, ContactPage } from '@/components/HomePage';
 import { AndroidHomePage } from '@/components/android/AndroidHomePage';
+import { NotificationHistoryPage } from '@/components/android/NotificationHistoryPage';
 import { KPSHomePage } from '@/components/android/KPSHomePage';
-import { PromotionalBanners } from '@/components/android/PromotionalBanners';
 import { AndroidProductsPage } from '@/components/android/AndroidProductsPage';
 import { AndroidProductDetailPage } from '@/components/android/AndroidProductDetailPage';
 import { ProductDetailPage } from '@/components/ProductDetailPage';
 import { OwnerLoginPage } from '@/components/OwnerLoginPage';
 import { OwnerDashboard } from '@/components/OwnerDashboard';
 
-type Page = 'home' | 'products' | 'about' | 'contact';
+type Page = 'home' | 'products' | 'about' | 'contact' | 'notifications';
 
 function setProductQuery(productId: string | null) {
   const url = new URL(window.location.href);
@@ -282,16 +282,15 @@ const navigate = (p: Page) => {
               onNavigate={setKpsPage}
             />
           ) : page === 'home' ? (
-            <>
-              <AndroidHomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} onOpenKps={openKps} />
-              <PromotionalBanners />
-            </>
+            <AndroidHomePage onNavigate={navigate} onSelectProduct={handleSelectProduct} onOpenKps={openKps} />
           ) : page === 'products' ? (
             <AndroidProductsPage onSelectProduct={handleSelectProduct} />
           ) : page === 'about' ? (
             <AboutPage />
           ) : page === 'contact' ? (
             <ContactPage />
+          ) : page === 'notifications' ? (
+            <NotificationHistoryPage onBack={() => navigate('home')} />
           ) : null}
         </main>
 
@@ -395,27 +394,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

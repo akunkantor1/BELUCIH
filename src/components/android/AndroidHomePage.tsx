@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PromotionalBanners } from '@/components/android/PromotionalBanners';
 import { UserRound,
   ArrowRight,
   Bell,
@@ -13,7 +14,7 @@ import { supabase, type Category, type Product } from '@/lib/supabase';
 import { useSettings } from '@/context/SettingsContext';
 
 type Props = {
-  onNavigate: (page: 'home' | 'products' | 'about' | 'contact') => void;
+  onNavigate: (page: 'home' | 'products' | 'about' | 'contact' | 'notifications') => void;
   onSelectProduct: (product: Product) => void;
   onOpenKps: () => void;
 };
@@ -85,16 +86,12 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [kpsBannerText, setKpsBannerText] = useState('Klik untuk melihat produk KPS');
-  const [kpsLogoUrl, setKpsLogoUrl] = useState<string | null>(null);
-  const [kpsStoreName, setKpsStoreName] = useState('KPS');
 
   useEffect(() => {
     let cancelled = false;
-    supabase.from('catalog_settings').select('banner_text, store_name, logo_url').eq('catalog', 'kps').maybeSingle()
+    supabase.from('catalog_settings').select('banner_text').eq('id', 1).maybeSingle()
       .then(({ data }) => {
         if (!cancelled && data?.banner_text) setKpsBannerText(data.banner_text);
-        if (!cancelled && data?.store_name) setKpsStoreName(data.store_name);
-        if (!cancelled) setKpsLogoUrl(data?.logo_url || null);
       });
     return () => { cancelled = true; };
   }, []);
@@ -163,8 +160,6 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
     });
   }, [products, search, activeCategory]);
 
-  const featuredProducts = products.filter((product) => product.is_featured).slice(0, 6);
-
   return (
     <div className="mx-auto min-h-screen w-full max-w-2xl overflow-hidden bg-[#faf9f6] pb-5">
       <div className="bg-white px-4 pb-4 pt-3">
@@ -195,8 +190,8 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => onNavigate('contact')}
-              aria-label="Informasi dan kontak toko"
+              onClick={() => onNavigate('notifications')}
+              aria-label="Riwayat notifikasi"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-stone-100 bg-stone-50 text-stone-700"
             >
               <Bell size={19} />
@@ -333,9 +328,9 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
             className="group flex w-full items-center justify-between overflow-hidden rounded-xl border border-blue-200 bg-white text-left shadow-sm transition active:scale-[0.99]"
           >
             <span className="flex min-w-0 items-center gap-3 px-3 py-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-blue-700 text-xs font-black tracking-tight text-white">{kpsLogoUrl ? <img src={kpsLogoUrl} alt={kpsStoreName} className="h-full w-full object-contain" /> : "KPS"}</span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-xs font-black tracking-tight text-white">KPS</span>
               <span className="min-w-0">
-                <span className="block text-xs font-extrabold tracking-wide text-blue-800">{kpsStoreName.toUpperCase()}</span>
+                <span className="block text-xs font-extrabold tracking-wide text-blue-800">KATALOG KPS</span>
                 <span className="block truncate text-[11px] text-slate-600">{kpsBannerText}</span>
               </span>
             </span>
@@ -346,37 +341,8 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
         )}
 
         {!search && !activeCategory && (
-          <section>
-            <div className="mb-3 flex items-end justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">
-                  PILIHAN TOKO
-                </p>
-                <h2 className="mt-1 text-lg font-extrabold text-stone-900">
-                  Produk unggulan
-                </h2>
-              </div>
-              <Tag size={19} className="text-amber-600" />
-            </div>
-
-            {featuredProducts.length > 0 ? (
-              <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {featuredProducts.map((product) => (
-                  <div key={product.id} className="w-[155px] shrink-0">
-                    <ProductTile product={product} onSelect={onSelectProduct} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 rounded-2xl border border-stone-100 bg-white p-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-                  <ShoppingBag size={19} />
-                </div>
-                <p className="text-xs leading-5 text-stone-500">
-                  Produk unggulan pilihan toko akan muncul di bagian ini.
-                </p>
-              </div>
-            )}
+          <section aria-label="Banner promosi BELUCIH">
+            <PromotionalBanners />
           </section>
         )}
 

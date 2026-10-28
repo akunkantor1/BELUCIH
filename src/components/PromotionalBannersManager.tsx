@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Image as ImageIcon, Pencil, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { uploadImage } from '@/lib/helpers';
@@ -11,6 +11,7 @@ type Banner = {
   target_url: string | null;
   sort_order: number;
   is_active: boolean;
+  catalog?: 'belucih' | 'kps' | null;
 };
 
 const emptyForm = {
@@ -24,7 +25,7 @@ const emptyForm = {
 
 const table = () => (supabase as any).from('promotional_banners');
 
-export function PromotionalBannersManager() {
+export function PromotionalBannersManager({ catalog }: { catalog: 'belucih' | 'kps' }) {
   const [items, setItems] = useState<Banner[]>([]);
   const [form, setForm] = useState({ ...emptyForm });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export function PromotionalBannersManager() {
   const load = useCallback(async () => {
     const { data, error } = await table()
       .select('*')
+      .eq('catalog', catalog)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
 
@@ -43,7 +45,7 @@ export function PromotionalBannersManager() {
       return;
     }
     setItems((data || []) as Banner[]);
-  }, []);
+  }, [catalog]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -106,11 +108,12 @@ export function PromotionalBannersManager() {
         target_url: form.target_url.trim() || null,
         sort_order: Number(form.sort_order) || 0,
         is_active: form.is_active,
+        catalog,
         updated_at: new Date().toISOString(),
       };
 
       const result = editingId
-        ? await table().update(payload).eq('id', editingId)
+        ? await table().update(payload).eq('id', editingId).eq('catalog', catalog)
         : await table().insert(payload);
 
       if (result.error) throw result.error;
@@ -128,7 +131,7 @@ export function PromotionalBannersManager() {
   async function toggleActive(item: Banner) {
     const { error } = await table()
       .update({ is_active: !item.is_active, updated_at: new Date().toISOString() })
-      .eq('id', item.id);
+      .eq('id', item.id).eq('catalog', catalog);
 
     if (error) {
       setMessage(`Gagal mengubah status: ${error.message}`);
@@ -140,7 +143,7 @@ export function PromotionalBannersManager() {
   async function deleteBanner(item: Banner) {
     if (!window.confirm(`Hapus banner "${item.title}"?`)) return;
 
-    const { error } = await table().delete().eq('id', item.id);
+    const { error } = await table().delete().eq('id', item.id).eq('catalog', catalog);
     if (error) {
       setMessage(`Gagal menghapus banner: ${error.message}`);
       return;

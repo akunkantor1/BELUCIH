@@ -54,7 +54,7 @@ export function KPSHomePage({ onBack, onSelectProduct, page, onNavigate }: Props
           .order('created_at', { ascending: false }),
         supabase.from('categories').select('*')
           .eq('catalog', 'kps').order('sort_order'),
-        supabase.from('promotional_banners').select('id, title, description, image_url, target_url, sort_order, is_active').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('promotional_banners').select('id, title, description, image_url, target_url, sort_order, is_active').eq('catalog', 'kps').eq('is_active', true).order('sort_order', { ascending: true }),
         supabase.from('catalog_settings').select('banner_text, store_name, logo_url, hero_image_url')
           .eq('catalog', 'kps').maybeSingle(),
       ]);
