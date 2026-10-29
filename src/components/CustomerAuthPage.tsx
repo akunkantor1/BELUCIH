@@ -1,6 +1,7 @@
 ﻿
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react';
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function CustomerAuthPage({ onBack, onSuccess }: Props) {
+  const { signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -195,6 +197,29 @@ export function CustomerAuthPage({ onBack, onSuccess }: Props) {
               : 'Buat akun'}
         </button>
       </form>
+
+      {mode === 'login' && (
+        <button
+          type="button"
+          disabled={loading}
+          onClick={async () => {
+            setError('');
+            setMessage('');
+            setLoading(true);
+            try {
+              const result = await signInWithGoogle();
+              if (result.error) setError(result.error);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Login Google gagal.');
+            } finally {
+              setLoading(false);
+            }
+          }}
+          className="w-full rounded-xl border border-[#766044]/60 bg-[#211b14] py-3 font-semibold text-[#f8ead2] transition hover:bg-[#302519] disabled:opacity-50"
+        >
+          Lanjutkan dengan Google
+        </button>
+      )}
 
       <div className="my-5 h-px bg-gradient-to-r from-transparent via-[#b99b6c]/30 to-transparent" />
 

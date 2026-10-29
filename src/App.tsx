@@ -16,8 +16,10 @@ import { AndroidProductDetailPage } from '@/components/android/AndroidProductDet
 import { ProductDetailPage } from '@/components/ProductDetailPage';
 import { OwnerLoginPage } from '@/components/OwnerLoginPage';
 import { OwnerDashboard } from '@/components/OwnerDashboard';
+import { CustomerAuthPage } from '@/components/CustomerAuthPage';
+import { CustomerProfilePage } from '@/components/CustomerProfilePage';
 
-type Page = 'home' | 'products' | 'about' | 'contact' | 'notifications';
+type Page = 'home' | 'products' | 'about' | 'contact' | 'notifications' | 'profile';
 
 function setProductQuery(productId: string | null) {
   const url = new URL(window.location.href);
@@ -218,7 +220,35 @@ if (isLoginRoute) {
     return <OwnerDashboard />;
   }
 
-  // Etalase pelanggan dapat diakses tanpa login.
+  const isCustomerLoginRoute = currentPath === '/login-pelanggan';
+
+  if (isCustomerLoginRoute) {
+    if (user) {
+      window.location.replace(isOwner ? '/owner' : '/');
+      return null;
+    }
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#100d0a] px-4 py-8">
+        <CustomerAuthPage
+          onBack={() => {}}
+          onSuccess={() => window.location.replace('/')}
+        />
+      </div>
+    );
+  }
+
+  // Wajib login untuk seluruh halaman pelanggan; rute Owner ditangani terpisah di atas.
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#100d0a] px-4 py-8">
+        <CustomerAuthPage
+          onBack={() => {}}
+          onSuccess={() => window.location.replace('/')}
+        />
+      </div>
+    );
+  }
 const navigate = (p: Page) => {
     setShowKps(false);
     setSelectedProduct(null);
@@ -291,6 +321,8 @@ const navigate = (p: Page) => {
             <ContactPage />
           ) : page === 'notifications' ? (
             <NotificationHistoryPage onBack={() => navigate('home')} />
+          ) : page === 'profile' ? (
+            <CustomerProfilePage onBack={() => navigate('home')} />
           ) : null}
         </main>
 
@@ -339,6 +371,7 @@ const navigate = (p: Page) => {
               { id: 'products', label: 'Produk', icon: Package },
               { id: 'about', label: 'Tentang', icon: Info },
               { id: 'contact', label: 'Kontak', icon: Phone },
+              { id: 'profile', label: 'Profil', icon: UserRound },
             ].map((item) => {
               const active = !selectedProduct && page === item.id;
               return (

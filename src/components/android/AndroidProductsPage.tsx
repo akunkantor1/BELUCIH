@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Package, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase, type Category, type Product } from '@/lib/supabase';
+import { attachVariantPrices, productPriceLabel } from '@/lib/productCardPricing';
+import { ProductChatOfferBadge } from '@/components/ProductChatOfferBadge';
 
 type Props = {
   onSelectProduct: (product: Product) => void;
@@ -51,7 +53,7 @@ export function AndroidProductsPage({ onSelectProduct }: Props) {
         console.error('Gagal memuat katalog Android:', productResult.error);
         setError(true);
       } else {
-        setProducts((productResult.data || []) as Product[]);
+        setProducts(await attachVariantPrices((productResult.data || []) as Product[]));
       }
 
       if (categoryResult.error) {
@@ -241,11 +243,12 @@ export function AndroidProductsPage({ onSelectProduct }: Props) {
                   {product.name}
                 </p>
                 <p className="mt-2 text-sm font-extrabold text-amber-700">
-                  {formatPrice(product.price)}
+                  {productPriceLabel(product)}
                 </p>
                 <p className="mt-1 truncate text-[10px] text-stone-400">
                   {product.category?.name || 'Produk BELUCIH'}
                 </p>
+                <ProductChatOfferBadge />
               </div>
             </button>
           ))}

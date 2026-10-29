@@ -12,6 +12,8 @@ import { UserRound,
 } from 'lucide-react';
 import { supabase, type Category, type Product } from '@/lib/supabase';
 import { useSettings } from '@/context/SettingsContext';
+import { attachVariantPrices, productPriceLabel } from '@/lib/productCardPricing';
+import { ProductChatOfferBadge } from '@/components/ProductChatOfferBadge';
 
 type Props = {
   onNavigate: (page: 'home' | 'products' | 'about' | 'contact' | 'notifications') => void;
@@ -67,11 +69,12 @@ function ProductTile({
           {product.name}
         </p>
         <p className="mt-2 text-sm font-extrabold text-amber-700">
-          {rupiah(product.price)}
+          {productPriceLabel(product)}
         </p>
         <p className="mt-1 truncate text-[10px] text-stone-400">
           {product.category?.name || 'Produk BELUCIH'}
         </p>
+        <ProductChatOfferBadge />
       </div>
     </button>
   );
@@ -86,6 +89,34 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [kpsBannerText, setKpsBannerText] = useState('Klik untuk melihat produk KPS');
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkUnreadNotifications() {
+      try {
+        const { data, error } = await (supabase as any)
+          .from('push_notifications')
+          .select('id')
+          .in('status', ['sent', 'partial'])
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (cancelled || error) return;
+        const stored: string[] = JSON.parse(
+          localStorage.getItem('belucih.readNotifications.v1') || '[]'
+        );
+        const readSet = new Set(stored);
+        setHasUnreadNotifications((data || []).some(
+          (item: { id: string }) => !readSet.has(item.id)
+        ));
+      } catch (err) {
+        console.error('Gagal memeriksa notifikasi:', err);
+      }
+    }
+    void checkUnreadNotifications();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +155,7 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
         console.error('Gagal memuat produk Android:', productResult.error);
         setLoadError(true);
       } else {
-        setProducts((productResult.data || []) as Product[]);
+        setProducts(await attachVariantPrices((productResult.data || []) as Product[]));
       }
 
       if (categoryResult.error) {
@@ -192,9 +223,15 @@ export function AndroidHomePage({ onNavigate, onSelectProduct, onOpenKps }: Prop
               type="button"
               onClick={() => onNavigate('notifications')}
               aria-label="Riwayat notifikasi"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-stone-100 bg-stone-50 text-stone-700"
+              className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-stone-100 bg-stone-50 text-stone-700"
             >
               <Bell size={19} />
+              {hasUnreadNotifications && (
+                <span
+                  aria-label="Ada notifikasi belum dibaca"
+                  className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-stone-50 bg-red-500"
+                />
+              )}
             </button>
           </div>
         </div>

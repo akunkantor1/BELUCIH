@@ -34,6 +34,19 @@ export function NotificationHistoryPage({ onBack }: { onBack: () => void }) {
         setError(true);
       } else {
         setItems((data || []) as NotificationItem[]);
+        try {
+          const stored: string[] = JSON.parse(
+            localStorage.getItem('belucih.readNotifications.v1') || '[]'
+          );
+          const readSet = new Set(stored);
+          (data || []).forEach((item: NotificationItem) => readSet.add(item.id));
+          localStorage.setItem(
+            'belucih.readNotifications.v1',
+            JSON.stringify(Array.from(readSet))
+          );
+        } catch (err) {
+          console.error('Gagal menyimpan status baca:', err);
+        }
       }
       setLoading(false);
     }
@@ -70,17 +83,23 @@ export function NotificationHistoryPage({ onBack }: { onBack: () => void }) {
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <article key={item.id} className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
-              {item.image_url ? (
-                <img src={item.image_url} alt="" loading="lazy" className="max-h-48 w-full object-cover" />
-              ) : null}
-              <div className="p-4">
+            <article key={item.id} className="flex min-w-0 gap-3 overflow-hidden rounded-2xl border border-stone-200 bg-white p-3">
+              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-stone-100">
+                {item.image_url ? (
+                  <img src={item.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-stone-400">
+                    <ImageOff size={24} />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 py-1">
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
                   {item.kind === 'product_new' ? 'Produk baru' : 'Pengumuman'}
                 </p>
-                <h2 className="font-bold text-stone-900">{item.title}</h2>
-                <p className="mt-1 whitespace-pre-line text-sm leading-6 text-stone-600">{item.body}</p>
-                <p className="mt-3 text-xs text-stone-400">
+                <h2 className="break-words font-bold text-stone-900">{item.title}</h2>
+                <p className="mt-1 whitespace-pre-line break-words text-sm leading-5 text-stone-600">{item.body}</p>
+                <p className="mt-2 text-xs text-stone-400">
                   {new Date(item.created_at).toLocaleString('id-ID', {
                     dateStyle: 'medium',
                     timeStyle: 'short',
@@ -88,7 +107,7 @@ export function NotificationHistoryPage({ onBack }: { onBack: () => void }) {
                 </p>
                 {item.target_url ? (
                   <a href={item.target_url}
-                    className="mt-3 inline-flex text-sm font-bold text-amber-800 underline underline-offset-4">
+                    className="mt-2 inline-flex text-sm font-bold text-amber-800 underline underline-offset-4">
                     Lihat selengkapnya
                   </a>
                 ) : null}

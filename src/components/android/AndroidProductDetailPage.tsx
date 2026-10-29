@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ArrowLeft, Check, ChefHat, ChevronLeft, ChevronRight,
   MessageCircle, Minus, Plus, Star, X
@@ -19,6 +19,7 @@ export function AndroidProductDetailPage({ product, onBack }: Props) {
   const [selectedImage, setSelectedImage] = useState(product.main_image_url);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [qty, setQty] = useState(1);
+  const [qtyInput, setQtyInput] = useState(String(qty));
   const [loading, setLoading] = useState(true);
 
   const fetchDetails = useCallback(async () => {
@@ -191,31 +192,54 @@ export function AndroidProductDetailPage({ product, onBack }: Props) {
           </section>
 
           {!soldOut && (
-            <section className="bg-white px-4 py-5">
-              <h2 className="mb-3 text-sm font-bold text-neutral-900">Jumlah pesanan</h2>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-neutral-500">Jumlah barang</span>
-                <div className="flex items-center gap-4 rounded-xl border border-neutral-200 p-1">
-                  <button
-                    onClick={() => setQty((value) => Math.max(1, value - 1))}
-                    disabled={qty <= 1}
-                    aria-label="Kurangi jumlah"
-                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100 disabled:opacity-40"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="min-w-5 text-center font-bold">{qty}</span>
-                  <button
-                    onClick={() => setQty((value) => value + 1)}
-                    aria-label="Tambah jumlah"
-                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
+  <section className="bg-white px-4 py-5">
+    <h2 className="mb-3 text-sm font-bold text-neutral-900">Jumlah pesanan</h2>
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2 rounded-xl border border-neutral-200 p-1">
+        <button
+          type="button"
+          onClick={() => { const next = Math.max(1, qty - 1); setQty(next); setQtyInput(String(next)); }}
+          disabled={qty <= 1}
+          aria-label="Kurangi jumlah"
+          className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100 disabled:opacity-40"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={qtyInput}
+          onChange={(event) => {
+            const value = event.target.value;
+            setQtyInput(value);
+            if (value === '') return;
+            const parsed = Number(value);
+            if (Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 1) {
+              setQty(parsed);
+            }
+          }}
+          onBlur={() => {
+            const parsed = Number(qtyInput);
+            if (qtyInput.trim() === '' || !Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1) {
+              setQtyInput(String(qty));
+            }
+          }}
+          aria-label="Jumlah pesanan"
+          className="h-10 w-16 rounded-md border-0 bg-transparent text-center font-bold outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => { const next = qty + 1; setQty(next); setQtyInput(String(next)); }}
+          aria-label="Tambah jumlah"
+          className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  </section>
+)}
 
           <section className="bg-white px-4 py-5">
             <h2 className="text-base font-bold text-neutral-900">Pesan melalui WhatsApp</h2>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Store, Package, Info, X } from 'lucide-react';
 import { supabase, type Category, type Product } from '@/lib/supabase';
+import { attachVariantPrices, productPriceLabel } from '@/lib/productCardPricing';
+import { ProductChatOfferBadge } from '@/components/ProductChatOfferBadge';
 
 type PromotionalBanner = {
   id: string;
@@ -64,7 +66,7 @@ export function KPSHomePage({ onBack, onSelectProduct, page, onNavigate }: Props
         console.error('Gagal memuat produk KPS:', p.error);
         setLoadError(true);
       } else {
-        setProducts((p.data || []) as Product[]);
+        setProducts(await attachVariantPrices((p.data || []) as Product[]));
       }
       if (!c.error) setCategories((c.data || []) as Category[]);
       if (!b.error) setPromoBanners((b.data || []) as PromotionalBanner[]);
@@ -122,7 +124,8 @@ export function KPSHomePage({ onBack, onSelectProduct, page, onNavigate }: Props
           <div className="p-3">
             <p className="line-clamp-2 text-xs font-semibold leading-5 text-stone-800">{p.name}</p>
             <p className="mt-1 text-[10px] text-stone-400">{p.category?.name || 'KPS'}</p>
-            <p className="mt-2 text-sm font-extrabold text-blue-700">{formatPrice(p.price)}</p>
+            <p className="mt-2 text-sm font-extrabold text-blue-700">{productPriceLabel(p)}</p>
+            <ProductChatOfferBadge />
           </div>
         </button>
       ))}

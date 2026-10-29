@@ -2,6 +2,8 @@
 import { supabase, type Product, type Category } from '@/lib/supabase';
 import { formatPrice, buildWhatsAppLink } from '@/lib/helpers';
 import { useSettings } from '@/context/SettingsContext';
+import { attachVariantPrices, productPriceLabel } from '@/lib/productCardPricing';
+import { ProductChatOfferBadge } from '@/components/ProductChatOfferBadge';
 import {
   ChefHat, MessageCircle, Package, Search, ArrowRight, MapPin, Clock,
   Phone, Sparkles, Check, X, Star, Download,
@@ -25,7 +27,7 @@ export function HomePage({ onNavigate, onSelectProduct }: Props) {
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(8);
-    setProducts((data as Product[]) || []);
+    setProducts(await attachVariantPrices((data as Product[]) || []));
     setLoading(false);
   }, []);
 
@@ -210,10 +212,6 @@ function EmptyState() {
 }
 
 export function ProductCard({ product, onClick, delay }: { product: Product; onClick: () => void; delay?: number }) {
-  const minVariantPrice = product.variants && product.variants.length > 0
-    ? Math.min(...product.variants.filter(v => v.price).map(v => v.price!))
-    : null;
-
   return (
     <div
       onClick={onClick}
@@ -249,14 +247,9 @@ export function ProductCard({ product, onClick, delay }: { product: Product; onC
         )}
         <h3 className="text-sm font-bold text-brown-950 line-clamp-2 mb-2 leading-snug min-h-[2.5rem]">{product.name}</h3>
         <div className="flex items-center justify-between">
-          {product.price ? (
-            <p className="text-base font-extrabold text-brown-800">{formatPrice(product.price)}</p>
-          ) : minVariantPrice ? (
-            <p className="text-base font-extrabold text-brown-800">{formatPrice(minVariantPrice)}</p>
-          ) : (
-            <p className="text-xs text-brown-400 font-medium">Hubungi admin</p>
-          )}
+          <p className="text-base font-extrabold text-brown-800">{productPriceLabel(product)}</p>
         </div>
+        <ProductChatOfferBadge />
         <div className="flex items-center gap-1 mt-2.5 pt-2.5 border-t border-brown-100">
           {product.stock_status === 'Habis' ? (
             <span className="flex items-center gap-1 text-brown-400 text-[11px] font-semibold">
@@ -289,7 +282,7 @@ export function ProductsPage({ onSelectProduct }: { onSelectProduct: (p: Product
     if (selectedCategory) query = query.eq('category_id', selectedCategory);
     if (search) query = query.ilike('name', `%${search}%`);
     const { data } = await query;
-    setProducts((data as Product[]) || []);
+    setProducts(await attachVariantPrices((data as Product[]) || []));
     setLoading(false);
   }, [selectedCategory, search]);
 
