@@ -1,4 +1,4 @@
-import { X, House, Package, Info, Phone, UserRound } from 'lucide-react';
+import { X, House, Package, Info, Phone } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -16,10 +16,9 @@ import { AndroidProductDetailPage } from '@/components/android/AndroidProductDet
 import { ProductDetailPage } from '@/components/ProductDetailPage';
 import { OwnerLoginPage } from '@/components/OwnerLoginPage';
 import { OwnerDashboard } from '@/components/OwnerDashboard';
-import { CustomerAuthPage } from '@/components/CustomerAuthPage';
-import { CustomerProfilePage } from '@/components/CustomerProfilePage';
 
-type Page = 'home' | 'products' | 'about' | 'contact' | 'notifications' | 'profile';
+
+type Page = 'home' | 'products' | 'about' | 'contact' | 'notifications';
 
 function setProductQuery(productId: string | null) {
   const url = new URL(window.location.href);
@@ -103,7 +102,7 @@ function AppContent() {
               platform: 'android',
             },
           });
-          
+
 if (error) {
   console.error('Gagal mendaftarkan token notifikasi:', error);
   alert(`Registrasi notifikasi gagal: ${error.message}`);
@@ -219,37 +218,7 @@ if (isLoginRoute) {
     }
     return <OwnerDashboard />;
   }
-
-  const isCustomerLoginRoute = currentPath === '/login-pelanggan';
-
-  if (isCustomerLoginRoute) {
-    if (user) {
-      window.location.replace(isOwner ? '/owner' : '/');
-      return null;
-    }
-
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#100d0a] px-4 py-8">
-        <CustomerAuthPage
-          onBack={() => {}}
-          onSuccess={() => window.location.replace('/')}
-        />
-      </div>
-    );
-  }
-
-  // Wajib login untuk seluruh halaman pelanggan; rute Owner ditangani terpisah di atas.
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#100d0a] px-4 py-8">
-        <CustomerAuthPage
-          onBack={() => {}}
-          onSuccess={() => window.location.replace('/')}
-        />
-      </div>
-    );
-  }
-const navigate = (p: Page) => {
+  const navigate = (p: Page) => {
     setShowKps(false);
     setSelectedProduct(null);
     setSelectedProductCatalog('belucih');
@@ -321,8 +290,6 @@ const navigate = (p: Page) => {
             <ContactPage />
           ) : page === 'notifications' ? (
             <NotificationHistoryPage onBack={() => navigate('home')} />
-          ) : page === 'profile' ? (
-            <CustomerProfilePage onBack={() => navigate('home')} />
           ) : null}
         </main>
 
@@ -365,13 +332,13 @@ const navigate = (p: Page) => {
           </nav>
         ) : (
 <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.06)]">
-          <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
+          <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
             {[
               { id: 'home', label: 'Beranda', icon: House },
               { id: 'products', label: 'Produk', icon: Package },
               { id: 'about', label: 'Tentang', icon: Info },
               { id: 'contact', label: 'Kontak', icon: Phone },
-              { id: 'profile', label: 'Profil', icon: UserRound },
+
             ].map((item) => {
               const active = !selectedProduct && page === item.id;
               return (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PromotionalBanners } from '@/components/android/PromotionalBanners';
-import { UserRound,
+import {
   ArrowRight,
   Bell,
   ChevronRight,
